@@ -1,14 +1,20 @@
-version: '3.8'
-
 services:
-  deye:
+  base:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: deye
-    stdin_open: true
-    tty: true
+    image: boiller:latest
+
+  token:
+    image: boiller:latest
     volumes:
       - .:/workspace
     working_dir: /workspace
+    command: python3.12 token_extractor.py
 
+  check:
+    image: boiller:latest
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: python3.12 boiller.py

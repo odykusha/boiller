@@ -22,7 +22,3 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Встановлюємо робочу директорію
 WORKDIR /workspace
-
-# Встановлюємо bash як вхідну точку для інтерактивної роботи
-ENTRYPOINT ["bash"]
-

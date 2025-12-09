@@ -1,22 +1,27 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
+import json
 from pysolarmanv5 import PySolarmanV5
 from miio import ChuangmiPlug, DeviceException
 
 
+with open('config.json', 'r') as f:
+    config = json.load(f)
+    deye = config['deye']
+    mijia = config['mijia']
+
 
 def get_deye_battery_soc():
-    logger_ip = "192.168.50.160"
-    logger_port = 8899
-    logger_serial = 2992401876
+    logger_ip = deye['ip']
+    logger_serial = deye['serial']
     # Регістр для Battery SOC (State of Charge).
     register_soc = 184
 
     inverter = PySolarmanV5(
         logger_ip,
         logger_serial,
-        port=logger_port,
+        port=8899,
         mb_slave_id=1,
         verbose=False,
     )
@@ -28,18 +33,13 @@ def get_deye_battery_soc():
     print(f"[Deye] 🔋 Рівень заряду батареї: {soc_value}%")
 
 
-def mijia(action):
-    # NAME:     ялинка
-    # ID:       120047690
-    # MAC:      40:31:3C:D9:3D:C9
-    # IP:       192.168.50.176
-    # TOKEN:    688abef67428fdcc540797d198a6740d
-
-    PLUG_IP = "192.168.50.176"  # IP розетки з Token Extractor
-    PLUG_TOKEN = "688abef67428fdcc540797d198a6740d"  # 32-символьний токен
+def change_mijia(action):
     try:
         # Ініціалізація розетки
-        plug = ChuangmiPlug(ip=PLUG_IP, token=PLUG_TOKEN)
+        plug = ChuangmiPlug(
+            ip=mijia['ip'], 
+            token=mijia['token'],
+        )
 
         if action == "on":
             plug.on()
@@ -59,7 +59,8 @@ def mijia(action):
 
 
 if __name__ == "__main__":
-    get_deye_battery_soc()
-    # mijia('off')
-
-
+    # get_deye_battery_soc()
+    # change_mijia('off')
+    # change_mijia('on')
+    change_mijia('status')
+  
