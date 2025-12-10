@@ -2,65 +2,87 @@ import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
 import json
+import logging
 from pysolarmanv5 import PySolarmanV5
-from miio import ChuangmiPlug, DeviceException
+from miio import ChuangmiPlug
+
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+logger.addHandler(handler)
+logger.propagate = False
+
+
+SOC_LEVEL = 95
+HOME_LOAD = 2000
 
 
 with open('config.json', 'r') as f:
     config = json.load(f)
-    deye = config['deye']
-    mijia = config['mijia']
+    c_deye = config['deye']
+    c_mijia = config['mijia']
 
 
-def get_deye_battery_soc():
-    logger_ip = deye['ip']
-    logger_serial = deye['serial']
-    # Регістр для Battery SOC (State of Charge).
-    register_soc = 184
-
-    inverter = PySolarmanV5(
-        logger_ip,
-        logger_serial,
-        port=8899,
-        mb_slave_id=1,
-        verbose=False,
-    )
-    result = inverter.read_holding_registers(
-        register_addr=register_soc,
-        quantity=1,
-    )
-    soc_value = result[0]
-    print(f"[Deye] 🔋 Рівень заряду батареї: {soc_value}%")
-
-
-def change_mijia(action):
-    try:
-        # Ініціалізація розетки
-        plug = ChuangmiPlug(
-            ip=mijia['ip'], 
-            token=mijia['token'],
+class Deye:
+    def __init__(self):
+        self.inverter = PySolarmanV5(
+            address=c_deye['ip'],
+            serial=c_deye['serial'],
+            port=8899,
+            mb_slave_id=1,
+            verbose=False,
         )
+        def get_register(register_soc):
+            result = self.inverter.read_holding_registers(
+                register_addr=register_soc,
+                quantity=1,
+            )
+            return result[0]
 
-        if action == "on":
-            plug.on()
-            print("[Mijia] ✅ Розетка УВІМКНЕНА")
+        self.battery_soc = get_register(184)
+        self.grid_load = get_register(167)
+        self.home_load = get_register(176)
+    
+    def is_grid_on(self):
+        light = self.grid_load > 0
+        return light
+    
+    def is_grid_off(self):
+        return not self.is_grid_on()
 
-        elif action == "off":
-            plug.off()
-            print("[Mijia] ❌ Розетка ВИМКНЕНА")
+class Mijia:
+    def __init__(self):
+        self.plug = ChuangmiPlug(
+            ip=c_mijia['ip'],
+            token=c_mijia['token'],
+        )
+    
+    def on(self):
+        self.plug.on()
+    
+    def off(self):
+        self.plug.off()
 
-        elif action == "status":
-            info = plug.status()
-            print(f"[Mijia] ℹ️ Статус: {'Увімкнено' if info.is_on else 'Вимкнено'}")
-            return info.is_on
+    # def is_on(self):
+    #     status = self.plug.status().is_on
+    #     return status
 
-    except DeviceException as e:
-        print(f"[Mijia] ⚠️ Помилка з'єднання з розеткою: {e}")
+
+def change_boiller():
+    deye = Deye()
+    mijia = Mijia()
+
+    if deye.is_grid_off():
+        logger.info(f"[Boiller] 🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
+        mijia.off()
+    elif deye.is_grid_on() and deye.battery_soc == SOC_LEVEL and deye.home_load < HOME_LOAD:
+        logger.info(f"[Boiller] 💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
+        mijia.on()
+    else:
+        logger.info(f"[Boiller] ⏳ Мережа є, Чекаємо зарядження батареї. батарея: {deye.battery_soc}% , мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
 
 
 if __name__ == "__main__":
-    # get_deye_battery_soc()
-    # change_mijia('off')
-    # change_mijia('on')
-    change_mijia('status')
-  
+    change_boiller()
