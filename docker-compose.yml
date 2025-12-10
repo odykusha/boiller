@@ -17,7 +17,7 @@ services:
   check:
     image: boiller:latest
     container_name: boiller-service
-    restart: unless-stopped
+    restart: always
     environment:
       - TZ=Europe/Kyiv
     volumes:
