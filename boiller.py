@@ -3,6 +3,7 @@ warnings.filterwarnings('ignore', category=FutureWarning)
 
 import json
 import logging
+import time
 from pysolarmanv5 import PySolarmanV5
 from miio import ChuangmiPlug
 
@@ -14,10 +15,8 @@ handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-
 logger.addHandler(handler)
 logger.propagate = False
 
-
 SOC_LEVEL = 95
 HOME_LOAD = 2000
-
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -52,6 +51,7 @@ class Deye:
     def is_grid_off(self):
         return not self.is_grid_on()
 
+
 class Mijia:
     def __init__(self):
         self.plug = ChuangmiPlug(
@@ -85,4 +85,12 @@ def change_boiller():
 
 
 if __name__ == "__main__":
-    change_boiller()
+    logger.info("[Boiller] 🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
+    
+    while True:
+        try:
+            change_boiller()
+        except Exception as e:
+            logger.error(f"[Boiller] ❌ Помилка: {e}")
+        
+        time.sleep(60)
