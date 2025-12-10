@@ -18,6 +18,7 @@ services:
     image: boiller:latest
     container_name: boiller-service
     restart: always
+    network_mode: host
     environment:
       - TZ=Europe/Kyiv
     volumes:
