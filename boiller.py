@@ -17,6 +17,7 @@ logger.propagate = False
 
 SOC_LEVEL = 95
 HOME_LOAD = 2000
+MAX_HOME_LOAD = 4000
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -73,24 +74,28 @@ class Mijia:
 def change_boiller():
     deye = Deye()
     mijia = Mijia()
-
+    info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
+    
     if deye.is_grid_off():
-        logger.info(f"[Boiller] 🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
+        logger.info(f"🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
-    elif deye.is_grid_on() and deye.battery_soc == SOC_LEVEL and deye.home_load < HOME_LOAD:
-        logger.info(f"[Boiller] 💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
+    elif deye.is_grid_on() and deye.battery_soc >= SOC_LEVEL and deye.home_load <= HOME_LOAD:
+        logger.info(f"💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. {info}")
         mijia.on()
+    elif deye.is_grid_on() and deye.home_load >= MAX_HOME_LOAD:
+        logger.info(f"💡 Мережа є, Дім занадто великий - {deye.home_load} Вт, Бойлер ВИМКНЕНО 🔋. {info}")
+        mijia.off()
     else:
-        logger.info(f"[Boiller] ⏳ Мережа є, Чекаємо зарядження батареї. батарея: {deye.battery_soc}% , мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт")
+        logger.info(f"⏳ Мережа є, Чекаємо зарядження батареї. {info}")
 
 
 if __name__ == "__main__":
-    logger.info("[Boiller] 🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
+    logger.info("🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
     
     while True:
         try:
             change_boiller()
         except Exception as e:
-            logger.error(f"[Boiller] ❌ Помилка: {e}")
+            logger.error(f"❌ Помилка: {e}")
         
         time.sleep(60)
