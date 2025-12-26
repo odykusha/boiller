@@ -27,6 +27,13 @@
 
 ## Встановлення
 
+### 0.
+скачати актуальну версію файлу **token_extractor.py** 
+
+```bash
+curl -L -o token_extractor.py https://raw.githubusercontent.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor/master/token_extractor.py
+```
+
 ### 1. Клонування репозиторію
 
 ```bash
