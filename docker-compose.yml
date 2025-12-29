@@ -21,6 +21,7 @@ services:
     network_mode: host
     environment:
       - TZ=Europe/Kyiv
+      - PYTHONUNBUFFERED=1
     volumes:
       - .:/workspace
     working_dir: /workspace
