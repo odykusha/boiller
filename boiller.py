@@ -1,6 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
+import traceback
 import json
 import logging
 import time
@@ -71,9 +72,7 @@ class Mijia:
     #     return status
 
 
-def change_boiller():
-    deye = Deye()
-    mijia = Mijia()
+def change_boiller(deye, mijia):
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
     
     if deye.is_grid_off():
@@ -92,10 +91,16 @@ def change_boiller():
 if __name__ == "__main__":
     logger.info("🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
     
+    deye = Deye()
+    mijia = Mijia()
+
     while True:
         try:
-            change_boiller()
+            change_boiller(deye, mijia)
         except Exception as e:
             logger.error(f"❌ Помилка: {e}")
-        
+            traceback.print_exc()
+            logger.info("🔄 Спроба відновити з'єднання...")
+            deye = Deye()
+            mijia = Mijia()
         time.sleep(60)
