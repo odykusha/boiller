@@ -35,16 +35,25 @@ class Deye:
             mb_slave_id=1,
             verbose=False,
         )
-        def get_register(register_soc):
-            result = self.inverter.read_holding_registers(
-                register_addr=register_soc,
-                quantity=1,
-            )
-            return result[0]
 
-        self.battery_soc = get_register(184)
-        self.grid_load = get_register(167)
-        self.home_load = get_register(176)
+    def get_register(self, register_soc):
+        result = self.inverter.read_holding_registers(
+            register_addr=register_soc,
+            quantity=1,
+        )
+        return result[0]
+    
+    @property
+    def battery_soc(self):
+        return self.get_register(184)
+    
+    @property
+    def grid_load(self):
+        return self.get_register(167)
+    
+    @property
+    def home_load(self):
+        return self.get_register(176)
     
     def is_grid_on(self):
         light = self.grid_load > 0
