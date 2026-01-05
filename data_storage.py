@@ -30,9 +30,7 @@ class DataStorage:
         
         with self.lock:
             self.history.append(record)
-            # Зберігаємо на диск кожні 10 записів для надійності
-            if len(self.history) % 10 == 0:
-                self.save_history()
+        self.save_history()
     
     def get_history(self, limit=None):
         """Перезавантажує історію з диску (корисно коли файл оновлюється іншим процесом)"""
