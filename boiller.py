@@ -84,6 +84,8 @@ class Mijia:
 
 def change_boiller(deye, mijia):
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
+    # Зберігаємо дані для графіків
+    storage.add_record(deye.battery_soc, deye.grid_load, deye.home_load)
     
     if deye.is_grid_off():
         logger.info(f"🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. {info}")
