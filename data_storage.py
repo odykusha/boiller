@@ -24,7 +24,8 @@ class DataStorage:
             'timestamp': datetime.now().isoformat(),
             'battery_soc': battery_soc,
             'grid_load': grid_load,
-            'home_load': home_load
+            'home_load': home_load,
+            'grid_status': grid_load > 0,  # True якщо є світло, False якщо немає
         }
         
         with self.lock:
