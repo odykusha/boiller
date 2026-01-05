@@ -127,7 +127,7 @@ docker compose up -d web
 2. Відкрийте браузер і перейдіть за адресою:
 
 ```
-http://localhost:5000
+http://localhost:8080
 ```
 
 Веб-інтерфейс відображає:
