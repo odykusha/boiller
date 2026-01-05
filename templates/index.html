@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бойлер-контролер - Графіки</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+        
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-card .unit {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 5px;
+        }
+        
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .chart-container h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+        
+        .status {
+            text-align: center;
+            color: white;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            .charts {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔋 Бойлер-контролер - Моніторинг</h1>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Батарея</h3>
+                <div class="value"><span id="battery-value">-</span><span class="unit">%</span></div>
+            </div>
+            <div class="stat-card">
+                <h3>Мережа</h3>
+                <div class="value"><span id="grid-value">-</span><span class="unit">Вт</span></div>
+            </div>
+            <div class="stat-card">
+                <h3>Дім</h3>
+                <div class="value"><span id="home-value">-</span><span class="unit">Вт</span></div>
+            </div>
+        </div>
+        
+        <div class="charts">
+            <div class="chart-container">
+                <h2>Батарея (%)</h2>
+                <div class="chart-wrapper">
+                    <canvas id="batteryChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Мережа (Вт)</h2>
+                <div class="chart-wrapper">
+                    <canvas id="gridChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Дім (Вт)</h2>
+                <div class="chart-wrapper">
+                    <canvas id="homeChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status">
+            Останнє оновлення: <span id="last-update">-</span>
+        </div>
+    </div>
+
+    <script>
+        // Конфігурація графіків
+        const chartConfig = {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        ticks: {
+                            maxTicksLimit: 10
+                        }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                },
+                elements: {
+                    point: {
+                        radius: 0
+                    }
+                }
+            }
+        };
+
+        // Створюємо графіки
+        const batteryChart = new Chart(
+            document.getElementById('batteryChart'),
+            {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Батарея (%)',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                }
+            }
+        );
+
+        const gridChart = new Chart(
+            document.getElementById('gridChart'),
+            {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Мережа (Вт)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                }
+            }
+        );
+
+        const homeChart = new Chart(
+            document.getElementById('homeChart'),
+            {
+                ...chartConfig,
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Дім (Вт)',
+                        data: [],
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                }
+            }
+        );
+
+        // Функція для форматування часу
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString('uk-UA', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        // Функція для оновлення графіків
+        function updateCharts(data) {
+            console.log('updateCharts викликано з даними:', data);
+            if (!data || data.length === 0) {
+                console.warn('Немає даних для оновлення графіків');
+                return;
+            }
+
+            const labels = data.map(item => formatTime(item.timestamp));
+            const batteryData = data.map(item => item.battery_soc);
+            const gridData = data.map(item => item.grid_load);
+            const homeData = data.map(item => item.home_load);
+            
+            console.log('Оновлюємо графіки:', {
+                labels: labels.length,
+                battery: batteryData.length,
+                grid: gridData.length,
+                home: homeData.length
+            });
+
+            // Оновлюємо графіки
+            batteryChart.data.labels = labels;
+            batteryChart.data.datasets[0].data = batteryData;
+            batteryChart.update('none');
+
+            gridChart.data.labels = labels;
+            gridChart.data.datasets[0].data = gridData;
+            gridChart.update('none');
+
+            homeChart.data.labels = labels;
+            homeChart.data.datasets[0].data = homeData;
+            homeChart.update('none');
+
+            // Оновлюємо останні значення
+            const latest = data[data.length - 1];
+            document.getElementById('battery-value').textContent = latest.battery_soc;
+            document.getElementById('grid-value').textContent = latest.grid_load;
+            document.getElementById('home-value').textContent = latest.home_load;
+            document.getElementById('last-update').textContent = formatTime(latest.timestamp);
+        }
+
+        // Функція для завантаження даних
+        async function loadData() {
+            try {
+                const response = await fetch('/api/data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                console.log('Отримано даних:', result.count, 'записів');
+                if (result.data && result.data.length > 0) {
+                    updateCharts(result.data);
+                } else {
+                    console.warn('Немає даних для відображення');
+                    document.getElementById('last-update').textContent = 'Немає даних';
+                }
+            } catch (error) {
+                console.error('Помилка завантаження даних:', error);
+                document.getElementById('last-update').textContent = 'Помилка завантаження';
+            }
+        }
+
+        // Завантажуємо дані при завантаженні сторінки
+        loadData();
+
+        // Оновлюємо дані кожні 60 секунд
+        setInterval(loadData, 60000);
+    </script>
+</body>
+</html>
+
