@@ -18,7 +18,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
         Pillow \
         pycryptodome \
         pysolarmanv5 \
-        python-miio
+        python-miio \
+        flask \
+        flask-cors
 
 # Встановлюємо робочу директорію
 WORKDIR /workspace

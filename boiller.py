@@ -7,6 +7,7 @@ import logging
 import time
 from pysolarmanv5 import PySolarmanV5
 from miio import ChuangmiPlug
+from data_storage import storage
 
 
 logger = logging.getLogger(__name__)
@@ -112,4 +113,9 @@ if __name__ == "__main__":
             logger.info("🔄 Спроба відновити з'єднання...")
             deye = Deye()
             mijia = Mijia()
+            logger.error("[[❌ Помилка відновлення з'єднання")
+        finally:
+            # Зберігаємо історію на диск перед сном
+            storage.save_history()
+        
         time.sleep(60)
