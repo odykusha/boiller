@@ -18,8 +18,7 @@ def index():
 def get_data():
     """API endpoint для отримання даних"""
     # Перезавантажуємо дані з файлу перед відправкою
-    limit = int(os.environ.get('DATA_LIMIT', 1000))
-    history = storage.get_history(limit=limit)
+    history = storage.get_history(limit=1440)
     print(f"API /api/data: повертаємо {len(history)} записів")
     return jsonify({
         'data': history,

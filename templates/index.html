@@ -6,6 +6,12 @@
     <title>Інвертор - Графіки</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <script>
+        // Реєструємо плагін zoom глобально
+        if (typeof Chart !== 'undefined' && Chart.register) {
+            Chart.register(window.zoomPlugin || {});
+        }
+    </script>
     <style>
         * {
             margin: 0;
@@ -221,7 +227,11 @@
         
         .chart-container.fullscreen .chart-wrapper {
             height: calc(100vh - 200px);
-            cursor: default;
+            cursor: grab;
+        }
+        
+        .chart-container.fullscreen .chart-wrapper:active {
+            cursor: grabbing;
         }
         
         .chart-container.fullscreen .chart-value {
@@ -311,7 +321,7 @@
                         <span id="battery-value">-</span><span class="unit">%</span>
                     </div>
                 </div>
-                <div class="chart-wrapper" onclick="openFullscreen('battery-chart-container')">
+                <div class="chart-wrapper" data-container="battery-chart-container">
                     <canvas id="batteryChart"></canvas>
                 </div>
             </div>
@@ -323,7 +333,7 @@
                         <span id="grid-value">-</span><span class="unit">Вт</span>
                     </div>
                 </div>
-                <div class="chart-wrapper" onclick="openFullscreen('grid-chart-container')">
+                <div class="chart-wrapper" data-container="grid-chart-container">
                     <canvas id="gridChart"></canvas>
                 </div>
             </div>
@@ -335,7 +345,7 @@
                         <span id="home-value">-</span><span class="unit">Вт</span>
                     </div>
                 </div>
-                <div class="chart-wrapper" onclick="openFullscreen('home-chart-container')">
+                <div class="chart-wrapper" data-container="home-chart-container">
                     <canvas id="homeChart"></canvas>
                 </div>
             </div>
@@ -379,11 +389,21 @@
                             pinch: {
                                 enabled: false
                             },
-                            mode: 'xy'
+                            mode: 'x',
+                            drag: {
+                                enabled: false
+                            }
                         },
                         pan: {
                             enabled: false,
-                            mode: 'xy'
+                            mode: 'x',
+                            modifierKey: null,
+                            threshold: 0,
+                            overScaleMode: 'x',
+                            speed: 1,
+                            onPanStart: function() {},
+                            onPan: function() {},
+                            onPanComplete: function() {}
                         }
                     }
                 },
@@ -565,6 +585,13 @@
             }
         }
 
+        // Змінні для ручного панорамування
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartScale = null;
+        let currentChart = null;
+        let originalDataBounds = {}; // Зберігаємо оригінальні межі даних для кожного графіка
+
         // Функція для відкриття повноекранного режиму
         function openFullscreen(containerId) {
             const container = document.getElementById(containerId);
@@ -586,16 +613,148 @@
             document.getElementById('back-btn').classList.add('visible');
             
             if (chart) {
-                // Увімкнути zoom в повноекранному режимі
+                currentChart = chart;
+                const canvas = container.querySelector('canvas');
+                
+                // Зберігаємо оригінальні межі даних
+                if (chart.data && chart.data.labels && chart.data.labels.length > 0) {
+                    originalDataBounds[containerId] = {
+                        min: 0,
+                        max: chart.data.labels.length - 1
+                    };
+                }
+                
+                // Увімкнути zoom (тільки колесо) в повноекранному режимі
                 if (chart.options && chart.options.plugins && chart.options.plugins.zoom) {
                     chart.options.plugins.zoom.zoom.wheel.enabled = true;
                     chart.options.plugins.zoom.zoom.pinch.enabled = true;
-                    chart.options.plugins.zoom.pan.enabled = true;
-                    chart.update('none');
+                    chart.options.plugins.zoom.zoom.drag.enabled = false;
+                    chart.options.plugins.zoom.pan.enabled = false; // Вимкнути вбудований pan
+                    chart.update();
                 }
-                setTimeout(() => chart.resize(), 100);
+                
+                // Додати обробники подій для ручного панорамування на canvas
+                if (canvas) {
+                    canvas.addEventListener('mousedown', handlePanStart, { passive: false });
+                    document.addEventListener('mousemove', handlePanMove, { passive: false });
+                    document.addEventListener('mouseup', handlePanEnd, { passive: false });
+                }
+                
+                setTimeout(() => {
+                    chart.resize();
+                }, 100);
             }
         }
+        
+        // Обробники для ручного панорамування
+        function handlePanStart(e) {
+            if (!currentChart || !currentChart.scales || !currentChart.scales.x) {
+                console.log('Немає currentChart або scales');
+                return;
+            }
+            if (e.button !== 0) return; // Тільки ліва кнопка миші
+            
+            const scale = currentChart.scales.x;
+            if (!scale || scale.min === undefined || scale.max === undefined) {
+                console.log('Немає scale або min/max');
+                return;
+            }
+            
+            // Перевіряємо чи графік має дані
+            if (!currentChart.data || !currentChart.data.labels || currentChart.data.labels.length === 0) {
+                console.log('Немає даних');
+                return;
+            }
+            
+            console.log('Початок панорамування', { min: scale.min, max: scale.max, width: scale.width });
+            
+            isPanning = true;
+            panStartX = e.clientX;
+            panStartScale = {
+                min: scale.min,
+                max: scale.max
+            };
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function handlePanMove(e) {
+            if (!isPanning || !currentChart || !currentChart.scales || !currentChart.scales.x || !panStartScale) return;
+            
+            const deltaX = panStartX - e.clientX; // Інвертуємо для правильного напрямку
+            const scale = currentChart.scales.x;
+            
+            if (!scale || scale.width === 0) return;
+            
+            const range = panStartScale.max - panStartScale.min;
+            const pixelRange = scale.width;
+            if (pixelRange === 0) return;
+            
+            // Обчислюємо скільки одиниць масштабу відповідає одному пікселю
+            const scalePerPixel = range / pixelRange;
+            const deltaScale = deltaX * scalePerPixel;
+            
+            const newMin = panStartScale.min + deltaScale;
+            const newMax = panStartScale.max + deltaScale;
+            
+            // Отримуємо межі даних
+            const labels = currentChart.data.labels;
+            if (!labels || labels.length === 0) return;
+            
+            // Для категорійної осі використовуємо індекси (0 до labels.length-1)
+            const dataMin = 0;
+            const dataMax = labels.length - 1;
+            
+            // Перевіряємо чи нові межі в межах даних
+            if (newMin >= dataMin && newMax <= dataMax && newMin < newMax) {
+                try {
+                    // Спробуємо використати zoomScale якщо доступний
+                    if (currentChart.zoomScale) {
+                        currentChart.zoomScale('x', { min: newMin, max: newMax });
+                    } else {
+                        // Альтернативний метод - безпосереднє оновлення масштабу
+                        if (currentChart.options && currentChart.options.scales && currentChart.options.scales.x) {
+                            currentChart.options.scales.x.min = newMin;
+                            currentChart.options.scales.x.max = newMax;
+                            currentChart.update('none');
+                        }
+                    }
+                    // Оновлюємо початкову позицію для плавного руху
+                    panStartX = e.clientX;
+                    panStartScale = { min: newMin, max: newMax };
+                } catch (err) {
+                    console.error('Помилка панорамування:', err);
+                }
+            }
+            
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function handlePanEnd(e) {
+            if (isPanning) {
+                isPanning = false;
+                panStartX = 0;
+                panStartScale = null;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Додаємо обробники для відкриття fullscreen при кліку (якщо не панорамуємо)
+        document.querySelectorAll('.chart-wrapper').forEach(wrapper => {
+            wrapper.addEventListener('click', function(e) {
+                // Якщо було панорамування, не відкриваємо fullscreen
+                if (isPanning || this.closest('.fullscreen')) {
+                    return;
+                }
+                const containerId = this.getAttribute('data-container');
+                if (containerId) {
+                    openFullscreen(containerId);
+                }
+            });
+        });
         
         // Функція для закриття повноекранного режиму
         function closeFullscreen() {
@@ -605,19 +764,30 @@
                 'home-chart-container': homeChart
             };
             
+            // Зупинити панорамування якщо воно активне
+            isPanning = false;
+            panStartX = 0;
+            panStartScale = null;
+            
             document.querySelectorAll('.chart-container.fullscreen').forEach(el => {
                 const containerId = el.id;
                 const chart = chartMap[containerId];
+                const wrapper = el.querySelector('.chart-wrapper');
+                
+                // Видалити обробники подій
+                document.removeEventListener('mousemove', handlePanMove);
+                document.removeEventListener('mouseup', handlePanEnd);
                 
                 // Скинути масштаб перед закриттям
                 if (chart && chart.resetZoom) {
                     chart.resetZoom();
                 }
                 
-                // Вимкнути zoom після виходу з повноекранного режиму
+                // Вимкнути zoom та pan після виходу з повноекранного режиму
                 if (chart && chart.options && chart.options.plugins && chart.options.plugins.zoom) {
                     chart.options.plugins.zoom.zoom.wheel.enabled = false;
                     chart.options.plugins.zoom.zoom.pinch.enabled = false;
+                    chart.options.plugins.zoom.zoom.drag.enabled = false;
                     chart.options.plugins.zoom.pan.enabled = false;
                     chart.update('none');
                 }
@@ -626,6 +796,7 @@
             });
             
             document.getElementById('back-btn').classList.remove('visible');
+            currentChart = null;
             
             [batteryChart, gridChart, homeChart].forEach(chart => {
                 if (chart) setTimeout(() => chart.resize(), 100);
@@ -636,6 +807,13 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeFullscreen();
+            }
+        });
+        
+        // Запобігаємо контекстному меню при перетягуванні
+        document.addEventListener('contextmenu', function(e) {
+            if (isPanning) {
+                e.preventDefault();
             }
         });
 
