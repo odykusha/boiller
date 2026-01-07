@@ -1,2 +1,4 @@
+.history/
+__pycache__/
 config.json
 data_history.json

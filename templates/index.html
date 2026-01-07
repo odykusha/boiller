@@ -167,14 +167,38 @@
                 0 0 30px rgba(0, 212, 255, 0.2);
         }
         
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
         .chart-container h2 {
             color: #00d4ff;
-            margin-bottom: 20px;
+            margin: 0;
             font-size: 1.2em;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 1px;
             text-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+        
+        .chart-value {
+            color: #00ff96;
+            font-size: 2.5em;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px rgba(0, 255, 150, 0.5);
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+        
+        .chart-value .unit {
+            font-size: 0.4em;
+            color: #8892b0;
+            font-weight: 400;
         }
         
         .chart-wrapper {
@@ -208,8 +232,14 @@
                 font-size: 1.8em;
             }
             
-            .stat-card .value {
-                font-size: 2.2em;
+            .chart-value {
+                font-size: 1.8em;
+            }
+            
+            .chart-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
             }
             
             body {
@@ -220,40 +250,40 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔋 Інвертор - Моніторинг <span id="header-light-indicator">💡</span></h1>
-        
-        <div class="stats">
-            <div class="stat-card">
-                <h3>Батарея</h3>
-                <div class="value"><span id="battery-value">-</span><span class="unit">%</span></div>
-            </div>
-            <div class="stat-card">
-                <h3>Мережа</h3>
-                <div class="value"><span id="grid-value">-</span><span class="unit">Вт</span></div>
-            </div>
-            <div class="stat-card">
-                <h3>Дім</h3>
-                <div class="value"><span id="home-value">-</span><span class="unit">Вт</span></div>
-            </div>
-        </div>
+        <h1>Інвертор - Моніторинг <span id="header-light-indicator">💡</span></h1>
         
         <div class="charts">
             <div class="chart-container">
-                <h2>Батарея (%)</h2>
+                <div class="chart-header">
+                    <h2>🔋 Батарея</h2>
+                    <div class="chart-value">
+                        <span id="battery-value">-</span><span class="unit">%</span>
+                    </div>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="batteryChart"></canvas>
                 </div>
             </div>
             
             <div class="chart-container">
-                <h2>Мережа (Вт)</h2>
+                <div class="chart-header">
+                    <h2>⚡ Мережа</h2>
+                    <div class="chart-value">
+                        <span id="grid-value">-</span><span class="unit">Вт</span>
+                    </div>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="gridChart"></canvas>
                 </div>
             </div>
             
             <div class="chart-container">
-                <h2>Дім (Вт)</h2>
+                <div class="chart-header">
+                    <h2>🏠 Дім</h2>
+                    <div class="chart-value">
+                        <span id="home-value">-</span><span class="unit">Вт</span>
+                    </div>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="homeChart"></canvas>
                 </div>
