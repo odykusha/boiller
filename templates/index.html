@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Інвертор - Графіки</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -204,6 +205,56 @@
         .chart-wrapper {
             position: relative;
             height: 300px;
+            cursor: pointer;
+        }
+        
+        .chart-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            border-radius: 0;
+            padding: 40px;
+        }
+        
+        .chart-container.fullscreen .chart-wrapper {
+            height: calc(100vh - 200px);
+            cursor: default;
+        }
+        
+        .chart-container.fullscreen .chart-value {
+            margin-right: 120px;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            color: #00d4ff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            font-family: 'Courier New', monospace;
+            z-index: 10000;
+            display: none;
+        }
+        
+        .back-btn:hover {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: rgba(0, 212, 255, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 255, 0.3);
+        }
+        
+        .back-btn.visible {
+            display: block;
         }
         
         .status {
@@ -253,41 +304,43 @@
         <h1>Інвертор - Моніторинг <span id="header-light-indicator">💡</span></h1>
         
         <div class="charts">
-            <div class="chart-container">
+            <div class="chart-container" id="battery-chart-container">
                 <div class="chart-header">
                     <h2>🔋 Батарея</h2>
                     <div class="chart-value">
                         <span id="battery-value">-</span><span class="unit">%</span>
                     </div>
                 </div>
-                <div class="chart-wrapper">
+                <div class="chart-wrapper" onclick="openFullscreen('battery-chart-container')">
                     <canvas id="batteryChart"></canvas>
                 </div>
             </div>
             
-            <div class="chart-container">
+            <div class="chart-container" id="grid-chart-container">
                 <div class="chart-header">
                     <h2>⚡ Мережа</h2>
                     <div class="chart-value">
                         <span id="grid-value">-</span><span class="unit">Вт</span>
                     </div>
                 </div>
-                <div class="chart-wrapper">
+                <div class="chart-wrapper" onclick="openFullscreen('grid-chart-container')">
                     <canvas id="gridChart"></canvas>
                 </div>
             </div>
             
-            <div class="chart-container">
+            <div class="chart-container" id="home-chart-container">
                 <div class="chart-header">
                     <h2>🏠 Дім</h2>
                     <div class="chart-value">
                         <span id="home-value">-</span><span class="unit">Вт</span>
                     </div>
                 </div>
-                <div class="chart-wrapper">
+                <div class="chart-wrapper" onclick="openFullscreen('home-chart-container')">
                     <canvas id="homeChart"></canvas>
                 </div>
             </div>
+            
+            <button class="back-btn" id="back-btn" onclick="closeFullscreen()">← Назад</button>
         </div>
         
         <div class="status">
@@ -316,6 +369,22 @@
                         borderWidth: 1,
                         padding: 12,
                         cornerRadius: 8
+                    },
+                    zoom: {
+                        zoom: {
+                            wheel: {
+                                enabled: false,
+                                speed: 0.1
+                            },
+                            pinch: {
+                                enabled: false
+                            },
+                            mode: 'xy'
+                        },
+                        pan: {
+                            enabled: false,
+                            mode: 'xy'
+                        }
                     }
                 },
                 scales: {
@@ -495,6 +564,80 @@
                 document.getElementById('last-update').textContent = 'Помилка завантаження';
             }
         }
+
+        // Функція для відкриття повноекранного режиму
+        function openFullscreen(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const chartMap = {
+                'battery-chart-container': batteryChart,
+                'grid-chart-container': gridChart,
+                'home-chart-container': homeChart
+            };
+            const chart = chartMap[containerId];
+            
+            // Закриваємо інші fullscreen контейнери
+            document.querySelectorAll('.chart-container.fullscreen').forEach(el => {
+                el.classList.remove('fullscreen');
+            });
+            
+            container.classList.add('fullscreen');
+            document.getElementById('back-btn').classList.add('visible');
+            
+            if (chart) {
+                // Увімкнути zoom в повноекранному режимі
+                if (chart.options && chart.options.plugins && chart.options.plugins.zoom) {
+                    chart.options.plugins.zoom.zoom.wheel.enabled = true;
+                    chart.options.plugins.zoom.zoom.pinch.enabled = true;
+                    chart.options.plugins.zoom.pan.enabled = true;
+                    chart.update('none');
+                }
+                setTimeout(() => chart.resize(), 100);
+            }
+        }
+        
+        // Функція для закриття повноекранного режиму
+        function closeFullscreen() {
+            const chartMap = {
+                'battery-chart-container': batteryChart,
+                'grid-chart-container': gridChart,
+                'home-chart-container': homeChart
+            };
+            
+            document.querySelectorAll('.chart-container.fullscreen').forEach(el => {
+                const containerId = el.id;
+                const chart = chartMap[containerId];
+                
+                // Скинути масштаб перед закриттям
+                if (chart && chart.resetZoom) {
+                    chart.resetZoom();
+                }
+                
+                // Вимкнути zoom після виходу з повноекранного режиму
+                if (chart && chart.options && chart.options.plugins && chart.options.plugins.zoom) {
+                    chart.options.plugins.zoom.zoom.wheel.enabled = false;
+                    chart.options.plugins.zoom.zoom.pinch.enabled = false;
+                    chart.options.plugins.zoom.pan.enabled = false;
+                    chart.update('none');
+                }
+                
+                el.classList.remove('fullscreen');
+            });
+            
+            document.getElementById('back-btn').classList.remove('visible');
+            
+            [batteryChart, gridChart, homeChart].forEach(chart => {
+                if (chart) setTimeout(() => chart.resize(), 100);
+            });
+        }
+        
+        // Обробка клавіші ESC для виходу з fullscreen
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFullscreen();
+            }
+        });
 
         // Завантажуємо дані при завантаженні сторінки
         loadData();
