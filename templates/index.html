@@ -284,6 +284,37 @@
             font-weight: 600;
         }
         
+        .apk-link {
+            margin-left: 20px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
+            color: #3DDC84;
+        }
+        
+        .apk-link:visited,
+        .apk-link:active,
+        .apk-link:hover {
+            color: #3DDC84;
+        }
+        
+        .ios-link {
+            margin-left: 15px;
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
+            color: #8892b0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .coming-soon {
+            font-size: 0.7em;
+            margin-left: 3px;
+            color: #8892b0;
+        }
+        
         @media (max-width: 768px) {
             .charts {
                 grid-template-columns: 1fr;
@@ -355,6 +386,19 @@
         
         <div class="status">
             Останнє оновлення: <span id="last-update">-</span>
+            <span style="margin-left: 20px;">|</span>
+            <a href="/download/boiller-monitor-debug-1.0.apk" title="Завантажити Android додаток" class="apk-link">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#3DDC84">
+                    <path d="M17.523 15.341c-.5 0-.91.41-.91.91s.41.91.91.91.91-.41.91-.91-.41-.91-.91-.91zm-11.046 0c-.5 0-.91.41-.91.91s.41.91.91.91.91-.41.91-.91-.41-.91-.91-.91zm11.405-6.02l1.97-3.41c.11-.19.05-.43-.14-.54-.19-.11-.43-.05-.54.14l-1.99 3.45c-1.5-.69-3.18-1.08-5-1.08s-3.5.39-5 1.08l-1.99-3.45c-.11-.19-.35-.25-.54-.14-.19.11-.25.35-.14.54l1.97 3.41C3.49 11.08 1.5 14.11 1.5 17.5h21c0-3.39-1.99-6.42-4.618-8.179zM6.477 14.25c-.5 0-.91-.41-.91-.91s.41-.91.91-.91.91.41.91.91-.41.91-.91.91zm11.046 0c-.5 0-.91-.41-.91-.91s.41-.91.91.91.41.91.91.91-.41.91-.91.91z"/>
+                </svg>
+                .apk
+            </a>
+            <span class="ios-link" title="iOS додаток (скоро)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#8892b0">
+                    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+                </svg>
+                <span class="coming-soon">скоро</span>
+            </span>
         </div>
     </div>
 
