@@ -17,7 +17,7 @@ handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-
 logger.addHandler(handler)
 logger.propagate = False
 
-SOC_LEVEL = 95
+SOC_LEVEL = 98
 HOME_LOAD = 3000
 MAX_HOME_LOAD = 4500
 
