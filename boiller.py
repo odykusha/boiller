@@ -18,8 +18,8 @@ logger.addHandler(handler)
 logger.propagate = False
 
 SOC_LEVEL = 95
-HOME_LOAD = 2000
-MAX_HOME_LOAD = 4000
+HOME_LOAD = 3000
+MAX_HOME_LOAD = 4500
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -94,7 +94,7 @@ def change_boiller(deye, mijia):
         logger.info(f"💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. {info}")
         mijia.on()
     elif deye.is_grid_on() and deye.home_load >= MAX_HOME_LOAD:
-        logger.info(f"💡 Мережа є, Дім занадто великий - {deye.home_load} Вт, Бойлер ВИМКНЕНО 🔋. {info}")
+        logger.info(f"💡 Мережа є, Дім занадто великий - {deye.home_load} Вт, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
     else:
         logger.info(f"⏳ Мережа є, Чекаємо зарядження батареї. {info}")

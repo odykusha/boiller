@@ -25,6 +25,11 @@ services:
     volumes:
       - .:/workspace
     working_dir: /workspace
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "3m"  # Максимальний розмір одного файлу
+        max-file: "5"   # Зберігати максимум 5 файлів
     command: python3.12 boiller.py
 
   web:
