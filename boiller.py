@@ -103,14 +103,8 @@ def change_boiller(deye, mijia):
 if __name__ == "__main__":
     logger.info("🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
     
-    mijia = Mijia() 
-    try:
-        deye = Deye()
-    except Exception as e:
-        logger.error(f"❌ Помилка: {e}")
-        traceback.print_exc()
-        logger.info("❌ Помилка з'єднання з інвертором, Бойлер УВІМКНЕНО 🔋.")
-        mijia.on()
+    deye = Deye()
+    mijia = Mijia()
 
     while True:
         try:
