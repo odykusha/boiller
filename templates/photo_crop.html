@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Crop</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #ECECEC;
+  color: #1d1d1f;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 14px 24px;
+  border-bottom: 1px solid #d2d2d7;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.subtitle  { font-size: 12px; color: #86868b; margin-top: 1px; }
+.toolbar   { display: flex; gap: 8px; align-items: center; }
+
+/* ── Control Bar ── */
+#controlBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 24px;
+  background: rgba(255,255,255,0.7);
+  border-bottom: 1px solid #d2d2d7;
+  position: sticky;
+  top: 57px;
+  z-index: 99;
+}
+.control-label { font-size: 12px; color: #86868b; white-space: nowrap; }
+
+/* ── Buttons ── */
+.btn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn:active { opacity: 0.75; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.btn-blue  { background: #0071e3; color: #fff; }
+.btn-blue:hover:not(:disabled)  { background: #0077ed; }
+.btn-gray  { background: #e8e8ed; color: #1d1d1f; }
+.btn-gray:hover:not(:disabled)  { background: #dcdce0; }
+.btn-red   { background: #ff3b30; color: #fff; }
+.btn-red:hover:not(:disabled)   { background: #ff4540; }
+.btn-green { background: #34c759; color: #fff; }
+.btn-green:hover:not(:disabled) { background: #3ad161; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+/* ── Ratio Selector (light) ── */
+.ratio-sel { display: flex; align-items: center; gap: 6px; }
+.ratio-sep { color: #c7c7cc; font-size: 14px; padding: 0 2px; user-select: none; }
+
+.ratio-sel .ratio-btn { background: #e8e8ed; color: #1d1d1f; }
+.ratio-sel .ratio-btn:hover:not(:disabled) { background: #dcdce0; }
+.ratio-sel .ratio-btn.active { background: #0071e3; color: #fff; }
+
+.ratio-input {
+  width: 38px;
+  text-align: center;
+  background: #f0f0f5;
+  border: 1px solid #d2d2d7;
+  color: #1d1d1f;
+  border-radius: 5px;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-family: inherit;
+  -moz-appearance: textfield;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.ratio-input:focus { border-color: #0071e3; }
+.ratio-input::-webkit-inner-spin-button,
+.ratio-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* Dark variant for modal */
+.modal-bar .ratio-sep { color: #48484a; }
+.modal-bar .ratio-sel .ratio-btn { background: #2c2c2e; color: #ebebf5; }
+.modal-bar .ratio-sel .ratio-btn:hover:not(:disabled) { background: #3a3a3c; }
+.modal-bar .ratio-sel .ratio-btn.active { background: #0071e3; color: #fff; }
+.modal-bar .ratio-input { background: #2c2c2e; border-color: #3a3a3c; color: #f5f5f7; }
+
+/* ── Drop Zone ── */
+#dropZone {
+  margin: 20px 24px 0;
+  border: 2px dashed #c7c7cc;
+  border-radius: 14px;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  background: #fff;
+}
+#dropZone:hover, #dropZone.drag-over { border-color: #0071e3; background: #f0f6ff; }
+#dropZone.compact {
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.dz-icon { font-size: 44px; margin-bottom: 10px; }
+.dz-text { font-size: 15px; color: #3c3c43; }
+.dz-sub  { font-size: 12px; color: #86868b; margin-top: 4px; }
+.compact .dz-icon { font-size: 20px; margin: 0; }
+.compact .dz-text { font-size: 13px; }
+.compact .dz-sub  { display: none; }
+#fileInput { display: none; }
+
+/* ── Photo Grid ── */
+#photoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+  padding: 16px 24px 32px;
+}
+
+.photo-card {
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.photo-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ── Thumbnail ── */
+.thumb-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  cursor: grab;
+  background: #f5f5f7;
+  /* aspect-ratio set inline per card */
+}
+.thumb-wrap.dragging { cursor: grabbing; }
+.thumb-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  /* object-position set inline */
+}
+
+/* ── Ratio Bar (overlay on thumbnail) ── */
+.thumb-ratio-bar {
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 3px;
+  background: rgba(0,0,0,0.52);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 3px 5px;
+  white-space: nowrap;
+}
+.trat-btn {
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: inherit;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.6);
+  background: transparent;
+  transition: color 0.12s, background 0.12s;
+}
+.trat-btn:hover { color: #fff; background: rgba(255,255,255,0.18); }
+.trat-btn.active { background: #0071e3; color: #fff; }
+
+/* ── Card Info ── */
+.card-info { padding: 8px 10px 10px; }
+.card-name {
+  font-size: 11px; color: #86868b;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500; padding: 2px 7px;
+  border-radius: 20px; margin-bottom: 8px;
+}
+.badge-gray  { background: #f2f2f7; color: #86868b; }
+.badge-green { background: #e8f9ee; color: #1a7f37; }
+.card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+/* ── Modal ── */
+#cropModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #111;
+  flex-direction: column;
+}
+#cropModal.active { display: flex; }
+
+.modal-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  background: #1c1c1e;
+  border-bottom: 1px solid #2c2c2e;
+  gap: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.modal-bar h2 {
+  font-size: 14px; font-weight: 500; color: #f5f5f7;
+  flex: 1; min-width: 100px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.modal-actions { display: flex; gap: 8px; flex-shrink: 0; margin-left: auto; }
+
+.modal-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 16px;
+}
+
+/* ── Crop Box ── */
+#imageContainer {
+  position: relative;
+  display: inline-block;
+  user-select: none;
+  -webkit-user-select: none;
+  line-height: 0;
+}
+#cropImage {
+  display: block;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 140px);
+  object-fit: contain;
+}
+#cropBox {
+  position: absolute;
+  cursor: move;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  border: 1.5px solid #fff;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.25) 1px, transparent 1px),
+    linear-gradient(rgba(255,255,255,0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.25) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.25) 1px, transparent 1px);
+  background-size:
+    100% calc(100% / 3 * 2), 100% calc(100% / 3 * 2),
+    calc(100% / 3 * 2) 100%, calc(100% / 3 * 2) 100%;
+  background-position:
+    0 calc(100% / 3), 0 calc(100% / 3 * 2),
+    calc(100% / 3) 0, calc(100% / 3 * 2) 0;
+  background-repeat: no-repeat;
+}
+.rh {
+  position: absolute; width: 14px; height: 14px;
+  background: #fff; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+.rh-nw { top: -7px; left: -7px; cursor: nw-resize; }
+.rh-ne { top: -7px; right: -7px; cursor: ne-resize; }
+.rh-sw { bottom: -7px; left: -7px; cursor: sw-resize; }
+.rh-se { bottom: -7px; right: -7px; cursor: se-resize; }
+.rh-n { top: -5px;    left: calc(50% - 5px); width: 10px; height: 10px; cursor: n-resize; border-radius: 50%; }
+.rh-s { bottom: -5px; left: calc(50% - 5px); width: 10px; height: 10px; cursor: s-resize; border-radius: 50%; }
+.rh-w { top: calc(50% - 5px); left: -5px;    width: 10px; height: 10px; cursor: w-resize; border-radius: 50%; }
+.rh-e { top: calc(50% - 5px); right: -5px;   width: 10px; height: 10px; cursor: e-resize; border-radius: 50%; }
+
+.hint { font-size: 11px; color: #636366; margin-top: 6px; text-align: center; }
+#canvas { display: none; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div>
+    <h1>Photo Crop</h1>
+    <div class="subtitle">Обрізка фотографій під заданий формат</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-blue" id="btnAutoCropAll">Auto-crop all</button>
+    <button class="btn btn-gray" id="btnDownloadAll">Завантажити всі</button>
+    <button class="btn btn-gray" id="btnClearAll">Очистити</button>
+  </div>
+</header>
+
+<!-- Global Ratio Bar -->
+<div id="controlBar">
+  <span class="control-label">Пропорції:</span>
+  <div class="ratio-sel" id="globalRatioSel">
+    <button class="btn btn-gray btn-sm ratio-btn active" data-ratio="auto">Auto</button>
+    <button class="btn btn-gray btn-sm ratio-btn" data-ratio="2:3">2×3</button>
+    <button class="btn btn-gray btn-sm ratio-btn" data-ratio="3:2">3×2</button>
+    <span class="ratio-sep">|</span>
+    <input type="number" id="gRatioW" min="1" max="99" step="1" placeholder="W" class="ratio-input" title="Ширина">
+    <span class="ratio-sep">×</span>
+    <input type="number" id="gRatioH" min="1" max="99" step="1" placeholder="H" class="ratio-input" title="Висота">
+  </div>
+</div>
+
+<!-- Drop Zone -->
+<div id="dropZone">
+  <div class="dz-icon">📷</div>
+  <div class="dz-text">Перетягніть фото сюди</div>
+  <div class="dz-sub">або клікніть для вибору файлів · JPEG, PNG, HEIC, WEBP</div>
+  <input type="file" id="fileInput" multiple accept="image/*">
+</div>
+
+<div id="photoGrid"></div>
+
+<!-- Crop Modal -->
+<div id="cropModal">
+  <div class="modal-bar">
+    <h2 id="modalFileName">—</h2>
+    <div class="ratio-sel" id="modalRatioSel">
+      <button class="btn btn-sm ratio-btn active" data-ratio="2:3">2×3</button>
+      <button class="btn btn-sm ratio-btn"        data-ratio="3:2">3×2</button>
+      <span class="ratio-sep">|</span>
+      <input type="number" id="mRatioW" min="1" max="99" step="1" value="2" class="ratio-input" title="Ширина">
+      <span class="ratio-sep">×</span>
+      <input type="number" id="mRatioH" min="1" max="99" step="1" value="3" class="ratio-input" title="Висота">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray btn-sm" id="btnModalCancel">Скасувати</button>
+      <button class="btn btn-blue btn-sm" id="btnModalConfirm">Обрізати ↵</button>
+    </div>
+  </div>
+  <div class="modal-body">
+    <div>
+      <div id="imageContainer">
+        <img id="cropImage" alt="">
+        <div id="cropBox">
+          <div class="rh rh-nw" data-h="nw"></div>
+          <div class="rh rh-n"  data-h="n"></div>
+          <div class="rh rh-ne" data-h="ne"></div>
+          <div class="rh rh-e"  data-h="e"></div>
+          <div class="rh rh-se" data-h="se"></div>
+          <div class="rh rh-s"  data-h="s"></div>
+          <div class="rh rh-sw" data-h="sw"></div>
+          <div class="rh rh-w"  data-h="w"></div>
+        </div>
+      </div>
+      <div class="hint">Тягніть рамку або кути · Enter — підтвердити · Esc — скасувати</div>
+    </div>
+  </div>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+// ─────────────────────────────────────────────
+//  Global ratio state
+// ─────────────────────────────────────────────
+let globalAuto = true;
+let globalW = 0, globalH = 0;
+
+function effectiveRatioWH(natW, natH) {
+  if (globalAuto) return natW > natH ? [3, 2] : [2, 3];
+  return [globalW, globalH];
+}
+
+function globalCustomLabel() {
+  if (globalAuto || globalW <= 0 || globalH <= 0) return null;
+  if (globalW === 2 && globalH === 3) return null;
+  if (globalW === 3 && globalH === 2) return null;
+  return `${globalW}×${globalH}`;
+}
+
+// ─────────────────────────────────────────────
+//  Global ratio selector (main page)
+// ─────────────────────────────────────────────
+const gRatioWEl = document.getElementById('gRatioW');
+const gRatioHEl = document.getElementById('gRatioH');
+
+document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (btn.dataset.ratio === 'auto') {
+      globalAuto = true;
+      gRatioWEl.value = ''; gRatioHEl.value = '';
+    } else {
+      const [w, h] = btn.dataset.ratio.split(':').map(Number);
+      globalAuto = false; globalW = w; globalH = h;
+      gRatioWEl.value = w; gRatioHEl.value = h;
+    }
+    reRenderAllCards();
+  });
+});
+
+function onGlobalCustom() {
+  const w = parseFloat(gRatioWEl.value);
+  const h = parseFloat(gRatioHEl.value);
+  if (w > 0 && h > 0) {
+    globalAuto = false; globalW = w; globalH = h;
+    document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(b => b.classList.remove('active'));
+    reRenderAllCards();
+  }
+}
+gRatioWEl.addEventListener('input', onGlobalCustom);
+gRatioHEl.addEventListener('input', onGlobalCustom);
+
+function reRenderAllCards() {
+  photos.forEach((_, id) => renderCard(id));
+}
+
+// ─────────────────────────────────────────────
+//  Photos state
+//  { original, cropped, name, natW, natH,
+//    ratioW, ratioH,   ← null = use global
+//    posX, posY }      ← 0–100, object-position
+// ─────────────────────────────────────────────
+const photos = new Map();
+let nextId = 0;
+
+function cardRatioWH(p) {
+  if (p.ratioW !== null) return [p.ratioW, p.ratioH];
+  return effectiveRatioWH(p.natW, p.natH);
+}
+
+// ─────────────────────────────────────────────
+//  DOM refs
+// ─────────────────────────────────────────────
+const dropZone    = document.getElementById('dropZone');
+const fileInput   = document.getElementById('fileInput');
+const photoGrid   = document.getElementById('photoGrid');
+const cropModal   = document.getElementById('cropModal');
+const cropImageEl = document.getElementById('cropImage');
+const cropBox     = document.getElementById('cropBox');
+const modalFileEl = document.getElementById('modalFileName');
+const mRatioWEl   = document.getElementById('mRatioW');
+const mRatioHEl   = document.getElementById('mRatioH');
+const canvas      = document.getElementById('canvas');
+const ctx         = canvas.getContext('2d');
+
+// ─────────────────────────────────────────────
+//  File input & Drop Zone
+// ─────────────────────────────────────────────
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  addFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('image/')));
+});
+fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value = ''; });
+
+function addFiles(files) {
+  files.forEach(file => {
+    const id = nextId++;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        photos.set(id, {
+          original: ev.target.result,
+          cropped:  null,
+          name:     file.name,
+          natW:     img.naturalWidth,
+          natH:     img.naturalHeight,
+          ratioW:   null,
+          ratioH:   null,
+          posX:     50,
+          posY:     50,
+        });
+        renderCard(id);
+        setDropZoneCompact();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setDropZoneCompact() {
+  if (photos.size > 0) {
+    dropZone.classList.add('compact');
+    dropZone.querySelector('.dz-icon').textContent = '➕';
+    dropZone.querySelector('.dz-text').textContent = 'Додати ще фото';
+  }
+}
+
+// ─────────────────────────────────────────────
+//  Render Photo Card
+// ─────────────────────────────────────────────
+function renderCard(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  const [rw, rh]   = cardRatioWH(p);
+  const isCropped  = !!p.cropped;
+  const customLbl  = globalCustomLabel();
+
+  const isActive23     = rw === 2 && rh === 3;
+  const isActive32     = rw === 3 && rh === 2;
+  const isActiveCustom = customLbl && rw === globalW && rh === globalH;
+
+  const customBtn = customLbl
+    ? `<button class="trat-btn ${isActiveCustom ? 'active' : ''}" data-id="${id}" data-rw="${globalW}" data-rh="${globalH}">${customLbl}</button>`
+    : '';
+
+  let card = document.getElementById(`card-${id}`);
+  if (!card) {
+    card = document.createElement('div');
+    card.className = 'photo-card';
+    card.id = `card-${id}`;
+    photoGrid.appendChild(card);
+  }
+
+  card.innerHTML = `
+    <div class="thumb-wrap" data-id="${id}" style="aspect-ratio:${rw}/${rh}">
+      <img src="${p.original}" style="object-position:${p.posX}% ${p.posY}%">
+      <div class="thumb-ratio-bar">
+        <button class="trat-btn ${isActive23 ? 'active' : ''}" data-id="${id}" data-rw="2" data-rh="3">2×3</button>
+        <button class="trat-btn ${isActive32 ? 'active' : ''}" data-id="${id}" data-rw="3" data-rh="2">3×2</button>
+        ${customBtn}
+      </div>
+    </div>
+    <div class="card-info">
+      <div class="card-name" title="${p.name}">${p.name}</div>
+      <div class="badge ${isCropped ? 'badge-green' : 'badge-gray'}">
+        ${isCropped ? '✓ Обрізано' : 'Оригінал'}
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-gray btn-sm" onclick="autoCropOne(${id})">Auto</button>
+        <button class="btn btn-gray btn-sm" onclick="openManualCrop(${id})">Manual</button>
+        ${isCropped
+          ? `<button class="btn btn-green btn-sm" onclick="downloadOne(${id})">↓</button>
+             <button class="btn btn-gray  btn-sm" onclick="resetOne(${id})">↺</button>`
+          : ''}
+        <button class="btn btn-red btn-sm" onclick="removePhoto(${id})">✕</button>
+      </div>
+    </div>`;
+}
+
+function removePhoto(id) {
+  photos.delete(id);
+  document.getElementById(`card-${id}`)?.remove();
+  if (photos.size === 0) {
+    dropZone.classList.remove('compact');
+    dropZone.querySelector('.dz-icon').textContent = '📷';
+    dropZone.querySelector('.dz-text').textContent = 'Перетягніть фото сюди';
+  }
+}
+
+function resetOne(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  p.cropped = null;
+  renderCard(id);
+}
+
+// ─────────────────────────────────────────────
+//  Per-card ratio buttons (event delegation)
+// ─────────────────────────────────────────────
+photoGrid.addEventListener('click', e => {
+  const btn = e.target.closest('.trat-btn');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.id);
+  const rw = parseInt(btn.dataset.rw);
+  const rh = parseInt(btn.dataset.rh);
+  const p  = photos.get(id);
+  if (!p) return;
+  p.ratioW = rw;
+  p.ratioH = rh;
+  p.posX   = 50;
+  p.posY   = 50;
+  renderCard(id);
+});
+
+// ─────────────────────────────────────────────
+//  Thumbnail drag-to-pan (event delegation)
+// ─────────────────────────────────────────────
+let thumbDrag = null; // { id, lastX, lastY }
+
+photoGrid.addEventListener('mousedown', e => {
+  if (e.target.closest('.trat-btn')) return;
+  const thumbEl = e.target.closest('.thumb-wrap');
+  if (!thumbEl) return;
+  const id = parseInt(thumbEl.dataset.id);
+  thumbDrag = { id, lastX: e.clientX, lastY: e.clientY };
+  thumbEl.classList.add('dragging');
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!thumbDrag) return;
+
+  const { id } = thumbDrag;
+  const p = photos.get(id);
+  if (!p) { thumbDrag = null; return; }
+
+  const dx = e.clientX - thumbDrag.lastX;
+  const dy = e.clientY - thumbDrag.lastY;
+  thumbDrag.lastX = e.clientX;
+  thumbDrag.lastY = e.clientY;
+
+  const thumbEl = photoGrid.querySelector(`.thumb-wrap[data-id="${id}"]`);
+  if (!thumbEl) return;
+
+  const { width: W, height: H } = thumbEl.getBoundingClientRect();
+  const imgAspect = p.natW / p.natH;
+  const conAspect = W / H;
+
+  // Compute display-space excess (pixels the image overflows the container)
+  let exX = 0, exY = 0;
+  if (imgAspect > conAspect) {
+    exX = p.natW * (H / p.natH) - W; // height fills, width overflows
+  } else {
+    exY = p.natH * (W / p.natW) - H; // width fills, height overflows
+  }
+
+  if (exX > 0.5) p.posX = clamp(p.posX - dx / exX * 100, 0, 100);
+  if (exY > 0.5) p.posY = clamp(p.posY - dy / exY * 100, 0, 100);
+
+  // Update only the img (avoid full re-render during drag)
+  const imgEl = thumbEl.querySelector('img');
+  if (imgEl) imgEl.style.objectPosition = `${p.posX}% ${p.posY}%`;
+});
+
+document.addEventListener('mouseup', () => {
+  if (thumbDrag) {
+    const thumbEl = photoGrid.querySelector(`.thumb-wrap[data-id="${thumbDrag.id}"]`);
+    if (thumbEl) thumbEl.classList.remove('dragging');
+    thumbDrag = null;
+  }
+});
+
+// ─────────────────────────────────────────────
+//  Auto Crop  (uses card ratio + current pan)
+// ─────────────────────────────────────────────
+function autoCropOne(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  const [rw, rh] = cardRatioWH(p);
+  const ratio    = rw / rh;
+  const img      = new Image();
+  img.onload = () => {
+    const sw = img.naturalWidth, sh = img.naturalHeight;
+    let cw, ch;
+    if (sw / sh > ratio) { ch = sh; cw = ch * ratio; }
+    else                  { cw = sw; ch = cw / ratio; }
+
+    // posX/posY determine where inside the "excess" we crop
+    const cx = (sw - cw) * p.posX / 100;
+    const cy = (sh - ch) * p.posY / 100;
+
+    p.cropped = cropToDataUrl(img, cx, cy, cw, ch);
+    renderCard(id);
+  };
+  img.src = p.original;
+}
+
+document.getElementById('btnAutoCropAll').addEventListener('click', () => {
+  photos.forEach((_, id) => autoCropOne(id));
+});
+
+// ─────────────────────────────────────────────
+//  Crop helper
+// ─────────────────────────────────────────────
+function cropToDataUrl(img, x, y, w, h) {
+  canvas.width  = Math.round(w);
+  canvas.height = Math.round(h);
+  ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+  return canvas.toDataURL('image/jpeg', 0.95);
+}
+
+// ─────────────────────────────────────────────
+//  Download
+// ─────────────────────────────────────────────
+function downloadOne(id) {
+  const p = photos.get(id);
+  if (!p || !p.cropped) return;
+  const a = document.createElement('a');
+  a.href = p.cropped;
+  a.download = 'crop_' + p.name.replace(/\.[^.]+$/, '') + '.jpg';
+  a.click();
+}
+
+document.getElementById('btnDownloadAll').addEventListener('click', () => {
+  const cropped = [...photos.entries()].filter(([, p]) => p.cropped);
+  if (!cropped.length) { alert('Спочатку обріжте хоча б одне фото'); return; }
+  cropped.forEach(([id], i) => setTimeout(() => downloadOne(id), i * 200));
+});
+
+document.getElementById('btnClearAll').addEventListener('click', () => {
+  if (!photos.size) return;
+  if (confirm('Видалити всі фото?')) {
+    photos.clear();
+    photoGrid.innerHTML = '';
+    dropZone.classList.remove('compact');
+    dropZone.querySelector('.dz-icon').textContent = '📷';
+    dropZone.querySelector('.dz-text').textContent = 'Перетягніть фото сюди';
+  }
+});
+
+// ─────────────────────────────────────────────
+//  Manual Crop — Modal
+// ─────────────────────────────────────────────
+let currentId    = null;
+let currentRatio = 2 / 3;
+let crop = { x: 0, y: 0, w: 0, h: 0 };
+let drag = null;
+
+function setModalRatio(w, h, updateInputs) {
+  currentRatio = w / h;
+  if (updateInputs) { mRatioWEl.value = w; mRatioHEl.value = h; }
+  document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(btn => {
+    const [bw, bh] = btn.dataset.ratio.split(':').map(Number);
+    btn.classList.toggle('active', bw === w && bh === h);
+  });
+}
+
+document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const [w, h] = btn.dataset.ratio.split(':').map(Number);
+    setModalRatio(w, h, true);
+    if (cropImageEl.offsetWidth) applyRatioToCrop();
+  });
+});
+
+function onModalCustomInput() {
+  const w = parseFloat(mRatioWEl.value);
+  const h = parseFloat(mRatioHEl.value);
+  if (w > 0 && h > 0) {
+    currentRatio = w / h;
+    document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(b => b.classList.remove('active'));
+    if (cropImageEl.offsetWidth) applyRatioToCrop();
+  }
+}
+mRatioWEl.addEventListener('input', onModalCustomInput);
+mRatioHEl.addEventListener('input', onModalCustomInput);
+
+function applyRatioToCrop() {
+  const cx = crop.x + crop.w / 2, cy = crop.y + crop.h / 2;
+  const imgW = cropImageEl.offsetWidth, imgH = cropImageEl.offsetHeight;
+  let nw, nh;
+  if (imgW / imgH > currentRatio) { nh = imgH; nw = nh * currentRatio; }
+  else                             { nw = imgW; nh = nw / currentRatio; }
+  crop = { x: cx - nw / 2, y: cy - nh / 2, w: nw, h: nh };
+  constrainCrop(); applyCropBox();
+}
+
+function openManualCrop(id) {
+  currentId = id;
+  const p = photos.get(id);
+  modalFileEl.textContent = p.name;
+  cropImageEl.src = p.original;
+  cropModal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  if (cropImageEl.complete && cropImageEl.naturalWidth) initCropBox();
+  else cropImageEl.onload = initCropBox;
+}
+
+function initCropBox() {
+  const natW = cropImageEl.naturalWidth, natH = cropImageEl.naturalHeight;
+  const p = photos.get(currentId);
+  const [rw, rh] = p ? cardRatioWH(p) : effectiveRatioWH(natW, natH);
+  setModalRatio(rw, rh, true);
+
+  const W = cropImageEl.offsetWidth, H = cropImageEl.offsetHeight;
+  let w, h;
+  if (W / H > currentRatio) { h = H; w = h * currentRatio; }
+  else                       { w = W; h = w / currentRatio; }
+  crop = { x: (W - w) / 2, y: (H - h) / 2, w, h };
+  applyCropBox();
+}
+
+function applyCropBox() {
+  cropBox.style.left   = crop.x + 'px';
+  cropBox.style.top    = crop.y + 'px';
+  cropBox.style.width  = crop.w + 'px';
+  cropBox.style.height = crop.h + 'px';
+}
+
+function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+function constrainCrop() {
+  const imgW = cropImageEl.offsetWidth, imgH = cropImageEl.offsetHeight;
+  crop.w = clamp(crop.w, 40, imgW);
+  crop.h = crop.w / currentRatio;
+  if (crop.h > imgH) { crop.h = imgH; crop.w = crop.h * currentRatio; }
+  crop.x = clamp(crop.x, 0, imgW - crop.w);
+  crop.y = clamp(crop.y, 0, imgH - crop.h);
+}
+
+// ── Modal crop box drag ──────────────────────
+
+cropBox.addEventListener('mousedown', e => {
+  const h = e.target.dataset.h;
+  drag = { type: h ? 'resize' : 'move', handle: h || null, sx: e.clientX, sy: e.clientY, sc: { ...crop } };
+  e.preventDefault(); e.stopPropagation();
+});
+
+document.addEventListener('mousemove', e => {
+  // Modal crop box drag
+  if (drag) {
+    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy, s = drag.sc;
+    if (drag.type === 'move') {
+      crop.x = s.x + dx; crop.y = s.y + dy; crop.w = s.w; crop.h = s.h;
+    } else {
+      const h = drag.handle;
+      let nw = s.w, nx = s.x, ny = s.y;
+      if      (h === 'se') { nw = s.w + dx; }
+      else if (h === 'sw') { nw = s.w - dx; nx = s.x + s.w - nw; }
+      else if (h === 'ne') { nw = s.w + dx; ny = s.y + s.h - nw / currentRatio; }
+      else if (h === 'nw') { nw = s.w - dx; nx = s.x + s.w - nw; ny = s.y + s.h - nw / currentRatio; }
+      else if (h === 'e' || h === 'w') {
+        nw = (h === 'e') ? s.w + dx : s.w - dx;
+        if (h === 'w') nx = s.x + s.w - nw;
+        ny = s.y + (s.h - nw / currentRatio) / 2;
+      }
+      else if (h === 'n' || h === 's') {
+        const nh = (h === 's') ? s.h + dy : s.h - dy;
+        nw = nh * currentRatio;
+        nx = s.x + (s.w - nw) / 2;
+        ny = (h === 'n') ? s.y + s.h - nh : s.y;
+        crop = { x: nx, y: ny, w: nw, h: nh };
+        constrainCrop(); applyCropBox(); return;
+      }
+      crop = { x: nx, y: ny, w: nw, h: nw / currentRatio };
+    }
+    constrainCrop(); applyCropBox();
+  }
+});
+
+document.addEventListener('mouseup', () => { drag = null; });
+
+// ── Confirm / Cancel ──────────────────────────
+
+document.getElementById('btnModalConfirm').addEventListener('click', confirmCrop);
+document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+
+function confirmCrop() {
+  const p = photos.get(currentId);
+  if (!p) return;
+  const img = new Image();
+  img.onload = () => {
+    const sx = img.naturalWidth  / cropImageEl.offsetWidth;
+    const sy = img.naturalHeight / cropImageEl.offsetHeight;
+    p.cropped = cropToDataUrl(img, crop.x * sx, crop.y * sy, crop.w * sx, crop.h * sy);
+    renderCard(currentId);
+    closeModal();
+  };
+  img.src = p.original;
+}
+
+function closeModal() {
+  cropModal.classList.remove('active');
+  document.body.style.overflow = '';
+  currentId = null; drag = null;
+}
+
+document.addEventListener('keydown', e => {
+  if (!cropModal.classList.contains('active')) return;
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter')  confirmCrop();
+});
+</script>
+</body>
+</html>

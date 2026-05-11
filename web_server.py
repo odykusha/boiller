@@ -17,6 +17,13 @@ def index():
     """Головна сторінка з графіками"""
     return render_template('index.html')
 
+@app.route('/<path:page>')
+def serve_page(page):
+    """Відображення будь-якого HTML файлу з директорії templates"""
+    if not page.endswith('.html'):
+        page = page + '.html'
+    return render_template(page)
+
 @app.route('/api/data')
 def get_data():
     """API endpoint для отримання даних"""
