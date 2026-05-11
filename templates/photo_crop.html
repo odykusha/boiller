@@ -487,10 +487,13 @@ function addFiles(files) {
     reader.onload = ev => {
       const img = new Image();
       img.onload = () => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        const mime = (ext === 'png') ? 'image/png' : 'image/jpeg';
         photos.set(id, {
           original: ev.target.result,
           cropped:  null,
           name:     file.name,
+          mime,
           natW:     img.naturalWidth,
           natH:     img.naturalHeight,
           ratioW:   null,
@@ -679,7 +682,7 @@ function autoCropOne(id) {
     const cx = (sw - cw) * p.posX / 100;
     const cy = (sh - ch) * p.posY / 100;
 
-    p.cropped = cropToDataUrl(img, cx, cy, cw, ch);
+    p.cropped = cropToDataUrl(img, cx, cy, cw, ch, p.mime);
     renderCard(id);
   };
   img.src = p.original;
@@ -692,11 +695,13 @@ document.getElementById('btnAutoCropAll').addEventListener('click', () => {
 // ─────────────────────────────────────────────
 //  Crop helper
 // ─────────────────────────────────────────────
-function cropToDataUrl(img, x, y, w, h) {
+function cropToDataUrl(img, x, y, w, h, mime) {
   canvas.width  = Math.round(w);
   canvas.height = Math.round(h);
   ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
-  return canvas.toDataURL('image/jpeg', 0.95);
+  return mime === 'image/png'
+    ? canvas.toDataURL('image/png')
+    : canvas.toDataURL('image/jpeg', 1.0);
 }
 
 // ─────────────────────────────────────────────
@@ -707,7 +712,8 @@ function downloadOne(id) {
   if (!p || !p.cropped) return;
   const a = document.createElement('a');
   a.href = p.cropped;
-  a.download = 'crop_' + p.name.replace(/\.[^.]+$/, '') + '.jpg';
+  const outExt = p.mime === 'image/png' ? '.png' : '.jpg';
+  a.download = 'crop_' + p.name.replace(/\.[^.]+$/, '') + outExt;
   a.click();
 }
 
@@ -873,7 +879,7 @@ function confirmCrop() {
   img.onload = () => {
     const sx = img.naturalWidth  / cropImageEl.offsetWidth;
     const sy = img.naturalHeight / cropImageEl.offsetHeight;
-    p.cropped = cropToDataUrl(img, crop.x * sx, crop.y * sy, crop.w * sx, crop.h * sy);
+    p.cropped = cropToDataUrl(img, crop.x * sx, crop.y * sy, crop.w * sx, crop.h * sy, p.mime);
     renderCard(currentId);
     closeModal();
   };
