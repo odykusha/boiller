@@ -5,7 +5,7 @@ from flask import Flask, render_template, jsonify, send_from_directory, request
 from flask_cors import CORS
 from data_storage import storage
 import os
-from photo_enhancer import enhance, ai_enhance, gfpgan_restore, remove_bg
+from photo_enhancer import enhance, ai_enhance, gfpgan_restore, colorize_bw, remove_bg
 
 app = Flask(__name__)
 CORS(app)
@@ -67,6 +67,17 @@ def api_gfpgan():
     data = request.get_json()
     try:
         result = gfpgan_restore(data['image'])
+        return jsonify({'enhanced': result})
+    except ImportError as e:
+        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/colorize', methods=['POST'])
+def api_colorize():
+    data = request.get_json()
+    try:
+        result = colorize_bw(data['image'])
         return jsonify({'enhanced': result})
     except ImportError as e:
         return jsonify({'error': 'not_installed', 'message': str(e)}), 503
