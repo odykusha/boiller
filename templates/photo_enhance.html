@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; background: #ECECEC; color: #1d1d1f; min-height: 100vh; }
+
+/* ── Header ── */
+header { background: rgba(255,255,255,0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 14px 24px; border-bottom: 1px solid #d2d2d7; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.subtitle  { font-size: 12px; color: #86868b; margin-top: 1px; }
+.toolbar   { display: flex; gap: 8px; align-items: center; }
+
+/* ── Buttons ── */
+.btn { padding: 7px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; transition: opacity 0.15s, background 0.15s; white-space: nowrap; }
+.btn:active { opacity: 0.75; }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-blue   { background: #0071e3; color: #fff; }
+.btn-blue:hover:not(:disabled)   { background: #0077ed; }
+.btn-gray   { background: #e8e8ed; color: #1d1d1f; }
+.btn-gray:hover:not(:disabled)   { background: #dcdce0; }
+.btn-red    { background: #ff3b30; color: #fff; }
+.btn-red:hover:not(:disabled)    { background: #ff4540; }
+.btn-green  { background: #34c759; color: #fff; }
+.btn-green:hover:not(:disabled)  { background: #3ad161; }
+.btn-purple { background: #af52de; color: #fff; }
+.btn-purple:hover:not(:disabled) { background: #bf5ff0; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+/* ── Control Bar ── */
+#controlBar { display: flex; align-items: center; gap: 10px; padding: 9px 24px; background: rgba(255,255,255,0.7); border-bottom: 1px solid #d2d2d7; position: sticky; top: 57px; z-index: 99; }
+.control-label { font-size: 12px; color: #86868b; white-space: nowrap; }
+.ratio-sel-light { display: flex; align-items: center; gap: 6px; }
+.ratio-sep-l { color: #c7c7cc; font-size: 14px; padding: 0 2px; user-select: none; }
+.ratio-sel-light .ratio-btn { background: #e8e8ed; color: #1d1d1f; }
+.ratio-sel-light .ratio-btn:hover:not(:disabled) { background: #dcdce0; }
+.ratio-sel-light .ratio-btn.active { background: #0071e3; color: #fff; }
+.ratio-input-l { width: 38px; text-align: center; background: #f0f0f5; border: 1px solid #d2d2d7; color: #1d1d1f; border-radius: 5px; padding: 4px 2px; font-size: 12px; font-family: inherit; -moz-appearance: textfield; outline: none; }
+.ratio-input-l:focus { border-color: #0071e3; }
+.ratio-input-l::-webkit-inner-spin-button, .ratio-input-l::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+/* ── Drop Zone ── */
+#dropZone { margin: 20px 24px 0; border: 2px dashed #c7c7cc; border-radius: 14px; padding: 40px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: #fff; }
+#dropZone:hover, #dropZone.drag-over { border-color: #0071e3; background: #f0f6ff; }
+#dropZone.compact { padding: 14px 24px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.dz-icon { font-size: 44px; margin-bottom: 10px; }
+.dz-text { font-size: 15px; color: #3c3c43; }
+.dz-sub  { font-size: 12px; color: #86868b; margin-top: 4px; }
+.compact .dz-icon { font-size: 20px; margin: 0; }
+.compact .dz-text { font-size: 13px; }
+.compact .dz-sub  { display: none; }
+#fileInput { display: none; }
+
+/* ── Photo Grid ── */
+#photoGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; padding: 16px 24px 32px; }
+.photo-card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.12); transition: transform 0.15s, box-shadow 0.15s; }
+.photo-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+.thumb-wrap { position: relative; width: 100%; overflow: hidden; cursor: grab; background: #f5f5f7; }
+.thumb-wrap.dragging { cursor: grabbing; }
+.thumb-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.thumb-ratio-bar { position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; background: rgba(0,0,0,0.52); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 8px; padding: 3px 5px; white-space: nowrap; }
+.trat-btn { padding: 3px 9px; font-size: 11px; font-weight: 500; font-family: inherit; border: none; border-radius: 5px; cursor: pointer; color: rgba(255,255,255,0.6); background: transparent; transition: color 0.12s, background 0.12s; }
+.trat-btn:hover { color: #fff; background: rgba(255,255,255,0.18); }
+.trat-btn.active { background: #0071e3; color: #fff; }
+.card-info { padding: 8px 10px 10px; }
+.card-name { font-size: 11px; color: #86868b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; margin-bottom: 8px; }
+.badge-gray   { background: #f2f2f7; color: #86868b; }
+.badge-blue   { background: #e8f0fe; color: #1a6bd3; }
+.badge-green  { background: #e8f9ee; color: #1a7f37; }
+.badge-purple { background: #f5e9fc; color: #9b23cc; }
+.card-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+
+/* ── Editor Modal ── */
+#editorModal { display: none; position: fixed; inset: 0; z-index: 1000; background: #111; flex-direction: column; }
+#editorModal.active { display: flex; }
+
+/* Modal bar */
+.modal-bar { display: flex; align-items: center; padding: 0 16px; height: 52px; background: #1c1c1e; border-bottom: 1px solid #2c2c2e; gap: 12px; flex-shrink: 0; }
+.modal-bar h2 { font-size: 14px; font-weight: 500; color: #f5f5f7; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.modal-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* Mode tabs */
+.mode-tabs { display: flex; gap: 3px; background: #2c2c2e; border-radius: 9px; padding: 3px; flex-shrink: 0; }
+.mode-tab { background: transparent; border: none; color: rgba(235,235,245,0.6); font-size: 12px; font-weight: 500; font-family: inherit; padding: 5px 14px; border-radius: 7px; cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+.mode-tab.active { background: #3a3a3c; color: #fff; }
+.mode-tab:hover:not(.active) { color: #fff; }
+
+/* Modal body */
+.modal-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+/* Image area */
+.image-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #1a1a1a; position: relative; min-width: 0; }
+.view-center { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+
+/* ── Crop view ── */
+#imageContainer { position: relative; display: inline-block; user-select: none; -webkit-user-select: none; line-height: 0; }
+#cropImage { display: block; max-width: calc(100vw - 280px); max-height: calc(100vh - 52px); }
+#cropBox { position: absolute; cursor: move; box-shadow: 0 0 0 9999px rgba(0,0,0,0.55); border: 1.5px solid #fff;
+  background-image: linear-gradient(rgba(255,255,255,0.25) 1px,transparent 1px), linear-gradient(rgba(255,255,255,0.25) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,0.25) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,0.25) 1px,transparent 1px);
+  background-size: 100% calc(100%/3*2), 100% calc(100%/3*2), calc(100%/3*2) 100%, calc(100%/3*2) 100%;
+  background-position: 0 calc(100%/3), 0 calc(100%/3*2), calc(100%/3) 0, calc(100%/3*2) 0;
+  background-repeat: no-repeat; }
+.rh { position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+.rh-nw { top:-7px; left:-7px; cursor:nw-resize; } .rh-ne { top:-7px; right:-7px; cursor:ne-resize; }
+.rh-sw { bottom:-7px; left:-7px; cursor:sw-resize; } .rh-se { bottom:-7px; right:-7px; cursor:se-resize; }
+.rh-n { top:-5px; left:calc(50% - 5px); width:10px; height:10px; cursor:n-resize; border-radius:50%; }
+.rh-s { bottom:-5px; left:calc(50% - 5px); width:10px; height:10px; cursor:s-resize; border-radius:50%; }
+.rh-w { top:calc(50% - 5px); left:-5px; width:10px; height:10px; cursor:w-resize; border-radius:50%; }
+.rh-e { top:calc(50% - 5px); right:-5px; width:10px; height:10px; cursor:e-resize; border-radius:50%; }
+.hint { font-size: 11px; color: #636366; margin-top: 8px; text-align: center; }
+
+/* ── Enhance / compare view ── */
+.compare-outer { position: relative; display: inline-block; line-height: 0; user-select: none; -webkit-user-select: none; border-radius: 6px; overflow: hidden; transform-origin: center; }
+.compare-outer.zoomed  { cursor: grab; }
+.compare-outer.panning { cursor: grabbing !important; }
+#imgAfter  { display: block; max-width: calc(100vw - 280px); max-height: calc(100vh - 52px); }
+#imgBefore { display: block; }
+.before-clip { position: absolute; top:0; left:0; height:100%; overflow:hidden; width:50%; }
+.before-clip img { position: absolute; top:0; left:0; }
+.cmp-handle { position:absolute; top:0; width:2px; height:100%; background:#fff; cursor:ew-resize; z-index:10; left:50%; transform:translateX(-50%); }
+.cmp-handle::after { content:'◀ ▶'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; color:#1c1c1e; font-size:9px; font-weight:700; letter-spacing:-1px; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 6px rgba(0,0,0,0.5); }
+.cmp-label { position:absolute; bottom:10px; font-size:10px; font-weight:600; color:#fff; background:rgba(0,0,0,0.45); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); padding:2px 8px; border-radius:10px; pointer-events:none; z-index:5; }
+.cmp-before { left:10px; } .cmp-after { right:10px; }
+
+/* ── Controls panel ── */
+.controls-panel { width: 280px; flex-shrink: 0; background: #1c1c1e; border-left: 1px solid #2c2c2e; overflow-y: auto; padding: 16px; }
+.ctrl-section { margin-bottom: 14px; }
+.ctrl-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #636366; margin-bottom: 10px; }
+.ctrl-divider { height: 1px; background: #2c2c2e; margin: 6px 0 14px; }
+.ctrl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ctrl-row label { font-size: 12px; color: #ebebf5; width: 105px; flex-shrink: 0; }
+.ctrl-row input[type=range] { flex:1; -webkit-appearance:none; appearance:none; height:4px; background:#3a3a3c; border-radius:2px; outline:none; cursor:pointer; }
+.ctrl-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:#0071e3; border-radius:50%; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.4); }
+.ctrl-row input[type=range]::-moz-range-thumb { width:16px; height:16px; background:#0071e3; border:none; border-radius:50%; cursor:pointer; }
+.ctrl-val { font-size:11px; color:#86868b; width:28px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
+/* Ratio selector (dark) */
+.ratio-sel { display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+.ratio-sep  { color:#48484a; font-size:13px; padding:0 2px; }
+.ratio-btn  { background:#2c2c2e; color:#ebebf5; }
+.ratio-btn:hover { background:#3a3a3c; }
+.ratio-btn.active { background:#0071e3; color:#fff; }
+.ratio-input { width:36px; text-align:center; background:#2c2c2e; border:1px solid #3a3a3c; color:#f5f5f7; border-radius:5px; padding:4px 2px; font-size:12px; font-family:inherit; -moz-appearance:textfield; outline:none; }
+.ratio-input:focus { border-color:#0071e3; }
+.ratio-input::-webkit-inner-spin-button, .ratio-input::-webkit-outer-spin-button { -webkit-appearance:none; }
+/* Ctrl buttons */
+.ctrl-btns { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+.ctrl-btns .btn { width:100%; text-align:center; }
+.preset-grid { display:flex; gap:6px; flex-wrap:wrap; }
+/* Dimension info */
+.dim-info { font-size: 11px; color: #86868b; text-align: center; margin-top: 6px; font-variant-numeric: tabular-nums; }
+/* Status */
+.status-msg { font-size:11px; color:#636366; text-align:center; margin-top:8px; min-height:18px; line-height:1.4; }
+.status-msg.processing { color:#ffd60a; }
+.status-msg.done       { color:#34c759; }
+.status-msg.error      { color:#ff453a; font-size:10px; word-break:break-word; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin { display:inline-block; width:10px; height:10px; border:2px solid #44444a; border-top-color:#ffd60a; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:5px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div>
+    <h1>Photo Editor</h1>
+    <div class="subtitle">Обрізка та покращення фотографій</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn btn-blue" id="btnAutoCropAll">Auto-crop all</button>
+    <button class="btn btn-blue" id="btnDownloadAll">Завантажити всі</button>
+    <button class="btn btn-gray" id="btnClearAll">Очистити</button>
+  </div>
+</header>
+
+<!-- Global ratio bar -->
+<div id="controlBar">
+  <span class="control-label">Пропорції:</span>
+  <div class="ratio-sel-light" id="globalRatioSel">
+    <button class="btn btn-gray btn-sm ratio-btn active" data-ratio="auto">Auto</button>
+    <button class="btn btn-gray btn-sm ratio-btn" data-ratio="2:3">2×3</button>
+    <button class="btn btn-gray btn-sm ratio-btn" data-ratio="3:2">3×2</button>
+    <span class="ratio-sep-l">|</span>
+    <input type="number" id="gRatioW" min="1" max="99" step="1" placeholder="W" class="ratio-input-l" title="Ширина">
+    <span class="ratio-sep-l">×</span>
+    <input type="number" id="gRatioH" min="1" max="99" step="1" placeholder="H" class="ratio-input-l" title="Висота">
+  </div>
+</div>
+
+<!-- Drop Zone -->
+<div id="dropZone">
+  <div class="dz-icon">📷</div>
+  <div class="dz-text">Перетягніть фото сюди</div>
+  <div class="dz-sub">або клікніть для вибору файлів · JPEG, PNG, HEIC, WEBP</div>
+  <input type="file" id="fileInput" multiple accept="image/*">
+</div>
+
+<div id="photoGrid"></div>
+
+<!-- Editor Modal -->
+<div id="editorModal">
+  <div class="modal-bar">
+    <h2 id="modalFileName">—</h2>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="crop">✂ Обрізка</button>
+      <button class="mode-tab" data-mode="enhance">✨ Покращення</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-gray btn-sm" id="btnCancel">Скасувати</button>
+      <button class="btn btn-blue btn-sm" id="btnSave">Зберегти ↵</button>
+    </div>
+  </div>
+  <div class="modal-body">
+
+    <!-- Image area -->
+    <div class="image-area">
+      <!-- Crop view -->
+      <div id="cropView" class="view-center">
+        <div>
+          <div id="imageContainer">
+            <img id="cropImage" alt="">
+            <div id="cropBox">
+              <div class="rh rh-nw" data-h="nw"></div><div class="rh rh-n"  data-h="n"></div>
+              <div class="rh rh-ne" data-h="ne"></div><div class="rh rh-e"  data-h="e"></div>
+              <div class="rh rh-se" data-h="se"></div><div class="rh rh-s"  data-h="s"></div>
+              <div class="rh rh-sw" data-h="sw"></div><div class="rh rh-w"  data-h="w"></div>
+            </div>
+          </div>
+          <div class="hint">Тягніть рамку або кути · Enter — обрізати · Esc — скасувати</div>
+        </div>
+      </div>
+      <!-- Enhance / compare view -->
+      <div id="enhanceView" class="view-center" style="display:none">
+        <div class="compare-outer" id="compareOuter">
+          <img id="imgAfter" alt="after">
+          <div class="before-clip" id="beforeClip">
+            <img id="imgBefore" alt="before">
+          </div>
+          <div class="cmp-handle" id="cmpHandle"></div>
+          <span class="cmp-label cmp-before">До</span>
+          <span class="cmp-label cmp-after">Після</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls panel -->
+    <div class="controls-panel">
+
+      <!-- Crop controls -->
+      <div id="cropControls">
+        <div class="ctrl-section">
+          <div class="ctrl-title">Пропорції</div>
+          <div class="ratio-sel" id="modalRatioSel">
+            <button class="btn btn-sm ratio-btn active" data-ratio="2:3">2×3</button>
+            <button class="btn btn-sm ratio-btn" data-ratio="3:2">3×2</button>
+            <button class="btn btn-sm ratio-btn" data-ratio="1:1">1×1</button>
+            <span class="ratio-sep">|</span>
+            <input type="number" id="mRatioW" min="1" max="99" step="1" value="2" class="ratio-input" title="Ширина">
+            <span class="ratio-sep">×</span>
+            <input type="number" id="mRatioH" min="1" max="99" step="1" value="3" class="ratio-input" title="Висота">
+          </div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-section">
+          <div class="ctrl-title">Розмір виводу</div>
+          <div class="ctrl-row">
+            <label>Масштаб</label>
+            <input type="range" id="slScale" min="10" max="100" step="1" value="100">
+            <span class="ctrl-val" id="vScale">100%</span>
+          </div>
+          <div class="dim-info" id="dimInfo">— × — px</div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-btns">
+          <button class="btn btn-blue" id="btnCropApply">✂ Обрізати</button>
+          <button class="btn btn-gray btn-sm" id="btnCropReset">Скинути рамку</button>
+        </div>
+      </div>
+
+      <!-- Enhance controls -->
+      <div id="enhanceControls" style="display:none">
+        <div class="ctrl-section">
+          <div class="ctrl-title">Колір</div>
+          <div class="ctrl-row"><label>Яскравість</label><input type="range" id="slBrightness" min="0.5" max="2.0" step="0.05" value="1.0"><span class="ctrl-val" id="vBrightness">1.0</span></div>
+          <div class="ctrl-row"><label>Контрастність</label><input type="range" id="slContrast" min="0.5" max="2.5" step="0.05" value="1.0"><span class="ctrl-val" id="vContrast">1.0</span></div>
+          <div class="ctrl-row"><label>Насиченість</label><input type="range" id="slSaturation" min="0.0" max="2.5" step="0.05" value="1.0"><span class="ctrl-val" id="vSaturation">1.0</span></div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-section">
+          <div class="ctrl-title">Різкість та шум</div>
+          <div class="ctrl-row"><label>Чіткість</label><input type="range" id="slSharpness" min="0.0" max="4.0" step="0.1" value="1.0"><span class="ctrl-val" id="vSharpness">1.0</span></div>
+          <div class="ctrl-row"><label>Шумозаглушення</label><input type="range" id="slDenoise" min="0" max="20" step="1" value="0"><span class="ctrl-val" id="vDenoise">0</span></div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-section">
+          <div class="ctrl-title">Пресети</div>
+          <div class="preset-grid">
+            <button class="btn btn-gray btn-sm" onclick="applyPreset('vivid')">Vivid</button>
+            <button class="btn btn-gray btn-sm" onclick="applyPreset('soft')">Soft</button>
+            <button class="btn btn-gray btn-sm" onclick="applyPreset('sharp')">Sharp</button>
+            <button class="btn btn-gray btn-sm" onclick="applyPreset('denoise')">Denoise</button>
+          </div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-btns">
+          <button class="btn btn-blue"   id="btnProcess">✨ Обробити</button>
+          <button class="btn btn-purple" id="btnAi">AI ×2 Super-Resolution</button>
+          <button class="btn btn-gray btn-sm" id="btnEnhReset">Скинути</button>
+        </div>
+      </div>
+
+      <div id="statusMsg" class="status-msg"></div>
+    </div><!-- /controls-panel -->
+
+  </div><!-- /modal-body -->
+</div><!-- /editorModal -->
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────
+const PRESETS = {
+  vivid:   { brightness:1.05, contrast:1.3,  saturation:1.4, sharpness:1.5, denoise:0  },
+  soft:    { brightness:1.1,  contrast:0.9,  saturation:0.9, sharpness:0.5, denoise:5  },
+  sharp:   { brightness:1.0,  contrast:1.2,  saturation:1.1, sharpness:3.0, denoise:0  },
+  denoise: { brightness:1.0,  contrast:1.0,  saturation:1.0, sharpness:1.0, denoise:10 },
+};
+
+// ── State ──────────────────────────────────────────────────────
+const photos = new Map();
+let nextId = 0;
+let currentId  = null;
+let currentMode = 'crop';
+
+// Global crop ratio
+let globalAuto = true, globalW = 0, globalH = 0;
+
+function defParams() { return { brightness:1.0, contrast:1.0, saturation:1.0, sharpness:1.0, denoise:0 }; }
+function defPhoto(orig, name, mime, nw, nh) {
+  return { original:orig, cropped:null, enhanced:null, name, mime,
+           natW:nw, natH:nh, ratioW:null, ratioH:null, posX:50, posY:50,
+           params:defParams(), aiDone:false };
+}
+function getBase(p)  { return p.cropped  || p.original; }
+function getFinal(p) { return p.enhanced || p.cropped || p.original; }
+function cardRatioWH(p) {
+  if (p.ratioW != null) return [p.ratioW, p.ratioH];
+  if (!globalAuto)       return [globalW, globalH];
+  return p.natW > p.natH ? [3, 2] : [2, 3];
+}
+
+// ── DOM refs ───────────────────────────────────────────────────
+const dropZone      = document.getElementById('dropZone');
+const fileInput     = document.getElementById('fileInput');
+const photoGrid     = document.getElementById('photoGrid');
+const editorModal   = document.getElementById('editorModal');
+const modalFileName = document.getElementById('modalFileName');
+const canvas        = document.getElementById('canvas');
+const ctx           = canvas.getContext('2d');
+// Crop
+const cropImageEl   = document.getElementById('cropImage');
+const cropBoxEl     = document.getElementById('cropBox');
+const mRatioWEl     = document.getElementById('mRatioW');
+const mRatioHEl     = document.getElementById('mRatioH');
+// Enhance
+const imgAfter      = document.getElementById('imgAfter');
+const imgBefore     = document.getElementById('imgBefore');
+const beforeClip    = document.getElementById('beforeClip');
+const cmpHandle     = document.getElementById('cmpHandle');
+const compareOuter  = document.getElementById('compareOuter');
+const statusMsg     = document.getElementById('statusMsg');
+const SL = { brightness:document.getElementById('slBrightness'), contrast:document.getElementById('slContrast'), saturation:document.getElementById('slSaturation'), sharpness:document.getElementById('slSharpness'), denoise:document.getElementById('slDenoise') };
+const VL = { brightness:document.getElementById('vBrightness'),  contrast:document.getElementById('vContrast'),  saturation:document.getElementById('vSaturation'),  sharpness:document.getElementById('vSharpness'),  denoise:document.getElementById('vDenoise')  };
+
+// ── Global ratio bar ───────────────────────────────────────────
+const gRatioWEl = document.getElementById('gRatioW');
+const gRatioHEl = document.getElementById('gRatioH');
+document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (btn.dataset.ratio === 'auto') {
+      globalAuto = true; gRatioWEl.value = ''; gRatioHEl.value = '';
+    } else {
+      const [w, h] = btn.dataset.ratio.split(':').map(Number);
+      globalAuto = false; globalW = w; globalH = h;
+      gRatioWEl.value = w; gRatioHEl.value = h;
+    }
+    photos.forEach((_, id) => renderCard(id));
+  });
+});
+gRatioWEl.addEventListener('input', () => { const w=parseFloat(gRatioWEl.value), h=parseFloat(gRatioHEl.value); if(w>0&&h>0){globalAuto=false;globalW=w;globalH=h;document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(b=>b.classList.remove('active'));photos.forEach((_,id)=>renderCard(id));} });
+gRatioHEl.addEventListener('input', () => { const w=parseFloat(gRatioWEl.value), h=parseFloat(gRatioHEl.value); if(w>0&&h>0){globalAuto=false;globalW=w;globalH=h;document.querySelectorAll('#globalRatioSel .ratio-btn').forEach(b=>b.classList.remove('active'));photos.forEach((_,id)=>renderCard(id));} });
+
+// ── Drop zone ──────────────────────────────────────────────────
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); addFiles([...e.dataTransfer.files].filter(f=>f.type.startsWith('image/'))); });
+fileInput.addEventListener('change', () => { addFiles([...fileInput.files]); fileInput.value=''; });
+
+function addFiles(files) {
+  files.forEach(file => {
+    const id = nextId++;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const ext = file.name.split('.').pop().toLowerCase();
+        photos.set(id, defPhoto(ev.target.result, file.name, ext==='png'?'image/png':'image/jpeg', img.naturalWidth, img.naturalHeight));
+        renderCard(id);
+        setCompact();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function setCompact() {
+  if (photos.size > 0) { dropZone.classList.add('compact'); dropZone.querySelector('.dz-icon').textContent='➕'; dropZone.querySelector('.dz-text').textContent='Додати ще фото'; }
+  else                 { dropZone.classList.remove('compact'); dropZone.querySelector('.dz-icon').textContent='📷'; dropZone.querySelector('.dz-text').textContent='Перетягніть фото сюди'; }
+}
+
+// ── Cards ──────────────────────────────────────────────────────
+function renderCard(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  const [rw, rh] = cardRatioWH(p);
+  const finalSrc  = getFinal(p);
+  const badgeCls  = p.aiDone ? 'badge-purple' : p.enhanced ? 'badge-green' : p.cropped ? 'badge-blue' : 'badge-gray';
+  const badgeTxt  = p.aiDone ? '✦ AI' : p.enhanced ? '✓ Покращено' : p.cropped ? '✓ Обрізано' : 'Оригінал';
+  const hasResult = p.cropped || p.enhanced;
+
+  let card = document.getElementById(`card-${id}`);
+  if (!card) { card = document.createElement('div'); card.className='photo-card'; card.id=`card-${id}`; photoGrid.appendChild(card); }
+
+  card.innerHTML = `
+    <div class="thumb-wrap" data-id="${id}" style="aspect-ratio:${rw}/${rh}">
+      <img src="${finalSrc}" style="object-position:${p.posX}% ${p.posY}%">
+      <div class="thumb-ratio-bar">
+        <button class="trat-btn ${rw===2&&rh===3?'active':''}" data-id="${id}" data-rw="2" data-rh="3">2×3</button>
+        <button class="trat-btn ${rw===3&&rh===2?'active':''}" data-id="${id}" data-rw="3" data-rh="2">3×2</button>
+      </div>
+    </div>
+    <div class="card-info">
+      <div class="card-name" title="${p.name}">${p.name}</div>
+      <div class="badge ${badgeCls}">${badgeTxt}</div>
+      <div class="card-actions">
+        <button class="btn btn-gray btn-sm" onclick="autoCropOne(${id})" title="Auto crop">Auto</button>
+        <button class="btn btn-blue btn-sm" onclick="openModal(${id},'crop')"    title="Обрізати">✂</button>
+        <button class="btn btn-blue btn-sm" onclick="openModal(${id},'enhance')" title="Покращити">✨</button>
+        ${hasResult ? `<button class="btn btn-green btn-sm" onclick="dlOne(${id})">↓</button><button class="btn btn-gray btn-sm" onclick="resetOne(${id})">↺</button>` : ''}
+        <button class="btn btn-red btn-sm" onclick="removePhoto(${id})">✕</button>
+      </div>
+    </div>`;
+}
+
+// Per-card ratio buttons
+photoGrid.addEventListener('click', e => {
+  const btn = e.target.closest('.trat-btn');
+  if (!btn) return;
+  const id=parseInt(btn.dataset.id), rw=parseInt(btn.dataset.rw), rh=parseInt(btn.dataset.rh);
+  const p = photos.get(id);
+  if (!p) return;
+  p.ratioW=rw; p.ratioH=rh; p.posX=50; p.posY=50;
+  renderCard(id);
+});
+
+// Thumbnail drag-to-pan
+let thumbDrag = null;
+photoGrid.addEventListener('mousedown', e => {
+  if (e.target.closest('.trat-btn')) return;
+  const tw = e.target.closest('.thumb-wrap');
+  if (!tw) return;
+  thumbDrag = { id:parseInt(tw.dataset.id), lastX:e.clientX, lastY:e.clientY };
+  tw.classList.add('dragging'); e.preventDefault();
+});
+
+function autoCropOne(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  const [rw, rh] = cardRatioWH(p);
+  const ratio = rw/rh;
+  const img = new Image();
+  img.onload = () => {
+    const sw=img.naturalWidth, sh=img.naturalHeight;
+    let cw, ch;
+    if (sw/sh>ratio) { ch=sh; cw=ch*ratio; } else { cw=sw; ch=cw/ratio; }
+    const cx=(sw-cw)*p.posX/100, cy=(sh-ch)*p.posY/100;
+    p.cropped = cropToDataUrl(img, cx, cy, cw, ch, p.mime);
+    renderCard(id);
+  };
+  img.src = p.original;
+}
+document.getElementById('btnAutoCropAll').addEventListener('click', () => photos.forEach((_,id)=>autoCropOne(id)));
+function cropToDataUrl(img, x, y, w, h, mime) {
+  canvas.width=Math.round(w); canvas.height=Math.round(h);
+  ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+  return mime==='image/png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 1.0);
+}
+
+function removePhoto(id) { photos.delete(id); document.getElementById(`card-${id}`)?.remove(); setCompact(); }
+function resetOne(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  p.cropped=null; p.enhanced=null; p.aiDone=false; p.params=defParams(); p.posX=50; p.posY=50; p.ratioW=null; p.ratioH=null;
+  renderCard(id);
+}
+function dlOne(id) {
+  const p = photos.get(id);
+  if (!p) return;
+  const src = getFinal(p);
+  if (src===p.original) return alert('Спочатку обробіть фото');
+  const a = document.createElement('a');
+  a.href = src;
+  a.download = 'edited_' + p.name.replace(/\.[^.]+$/,'') + (p.mime==='image/png'?'.png':'.jpg');
+  a.click();
+}
+document.getElementById('btnDownloadAll').addEventListener('click', () => {
+  const list = [...photos.entries()].filter(([,p])=>p.cropped||p.enhanced);
+  if (!list.length) return alert('Спочатку обробіть хоча б одне фото');
+  list.forEach(([id],i)=>setTimeout(()=>dlOne(id),i*200));
+});
+document.getElementById('btnClearAll').addEventListener('click', () => {
+  if (!photos.size) return;
+  if (!confirm('Видалити всі фото?')) return;
+  photos.clear(); photoGrid.innerHTML=''; setCompact();
+});
+
+// ── Modal open / close ─────────────────────────────────────────
+function openModal(id, mode='crop') {
+  currentId = id;
+  modalFileName.textContent = photos.get(id)?.name || '';
+  setMode(mode);
+  editorModal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal() {
+  editorModal.classList.remove('active');
+  document.body.style.overflow = '';
+  currentId = null;
+  clearTimeout(previewTimer);
+}
+function saveAndClose() { if (currentId!=null) renderCard(currentId); closeModal(); }
+
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+document.getElementById('btnSave').addEventListener('click', saveAndClose);
+document.addEventListener('keydown', e => {
+  if (!editorModal.classList.contains('active')) return;
+  if (e.key==='Escape') closeModal();
+  if (e.key==='Enter' && e.target.tagName!=='INPUT') {
+    if (currentMode==='crop') applyCropAction();
+    else saveAndClose();
+  }
+});
+
+// ── Mode switching ─────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.toggle('active', b.dataset.mode===mode));
+  document.getElementById('cropView').style.display       = mode==='crop'    ? 'flex' : 'none';
+  document.getElementById('enhanceView').style.display    = mode==='enhance' ? 'flex' : 'none';
+  document.getElementById('cropControls').style.display   = mode==='crop'    ? 'block': 'none';
+  document.getElementById('enhanceControls').style.display= mode==='enhance' ? 'block': 'none';
+  setStatus('');
+  if (mode==='crop')    initCropMode();
+  if (mode==='enhance') initEnhanceMode();
+}
+document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('click', ()=>setMode(btn.dataset.mode)));
+
+// ──────────────────────────────────────────────────────────────
+//  CROP MODE
+// ──────────────────────────────────────────────────────────────
+let cropRatio = 2/3;
+let crop = { x:0, y:0, w:0, h:0 };
+let cropDrag = null;
+let cropScale = 100;
+
+const slScale   = document.getElementById('slScale');
+const vScale    = document.getElementById('vScale');
+const dimInfo   = document.getElementById('dimInfo');
+
+slScale.addEventListener('input', () => {
+  cropScale = parseInt(slScale.value);
+  vScale.textContent = cropScale + '%';
+  updateDimInfo();
+});
+
+function updateDimInfo() {
+  const p = photos.get(currentId);
+  if (!p || !cropImageEl.offsetWidth) { dimInfo.textContent = '— × — px'; return; }
+  const sx = p.natW / cropImageEl.offsetWidth;
+  const outW = Math.round(crop.w * sx * cropScale / 100);
+  const outH = Math.round(crop.h * sx * cropScale / 100);
+  dimInfo.textContent = outW + ' × ' + outH + ' px';
+}
+
+function initCropMode() {
+  const p = photos.get(currentId);
+  if (!p) return;
+  cropScale = 100; slScale.value = 100; vScale.textContent = '100%';
+  const [rw, rh] = cardRatioWH(p);
+  setModalRatio(rw, rh, true);
+  cropImageEl.src = p.original;
+  cropImageEl.onload = initCropBox;
+  if (cropImageEl.complete && cropImageEl.naturalWidth) initCropBox();
+}
+function setModalRatio(w, h, updateInputs) {
+  cropRatio = w/h;
+  if (updateInputs) { mRatioWEl.value=w; mRatioHEl.value=h; }
+  document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(btn => {
+    const [bw,bh] = btn.dataset.ratio.split(':').map(Number);
+    btn.classList.toggle('active', bw===w && bh===h);
+  });
+}
+document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const [w,h] = btn.dataset.ratio.split(':').map(Number);
+    const p = photos.get(currentId); if(p){p.ratioW=w;p.ratioH=h;}
+    setModalRatio(w, h, true);
+    if (cropImageEl.offsetWidth) applyRatioToCrop();
+  });
+});
+mRatioWEl.addEventListener('input', () => {
+  const w=parseFloat(mRatioWEl.value), h=parseFloat(mRatioHEl.value);
+  if(w>0&&h>0){const p=photos.get(currentId);if(p){p.ratioW=w;p.ratioH=h;}cropRatio=w/h;document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(b=>b.classList.remove('active'));if(cropImageEl.offsetWidth)applyRatioToCrop();}
+});
+mRatioHEl.addEventListener('input', () => {
+  const w=parseFloat(mRatioWEl.value), h=parseFloat(mRatioHEl.value);
+  if(w>0&&h>0){const p=photos.get(currentId);if(p){p.ratioW=w;p.ratioH=h;}cropRatio=w/h;document.querySelectorAll('#modalRatioSel .ratio-btn').forEach(b=>b.classList.remove('active'));if(cropImageEl.offsetWidth)applyRatioToCrop();}
+});
+function initCropBox() {
+  const W=cropImageEl.offsetWidth, H=cropImageEl.offsetHeight;
+  if (!W||!H) { setTimeout(initCropBox, 50); return; }
+  let w, h;
+  if (W/H>cropRatio) { h=H; w=h*cropRatio; } else { w=W; h=w/cropRatio; }
+  crop = { x:(W-w)/2, y:(H-h)/2, w, h };
+  applyCropBox();
+}
+function applyRatioToCrop() {
+  const cx=crop.x+crop.w/2, cy=crop.y+crop.h/2;
+  const W=cropImageEl.offsetWidth, H=cropImageEl.offsetHeight;
+  let nw, nh;
+  if (W/H>cropRatio){nh=H;nw=nh*cropRatio;}else{nw=W;nh=nw/cropRatio;}
+  crop={x:cx-nw/2,y:cy-nh/2,w:nw,h:nh};
+  constrainCrop(); applyCropBox();
+}
+function applyCropBox() { cropBoxEl.style.cssText=`left:${crop.x}px;top:${crop.y}px;width:${crop.w}px;height:${crop.h}px`; updateDimInfo(); }
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function constrainCrop() {
+  const W=cropImageEl.offsetWidth, H=cropImageEl.offsetHeight;
+  crop.w=clamp(crop.w,40,W); crop.h=crop.w/cropRatio;
+  if(crop.h>H){crop.h=H;crop.w=crop.h*cropRatio;}
+  crop.x=clamp(crop.x,0,W-crop.w); crop.y=clamp(crop.y,0,H-crop.h);
+}
+cropBoxEl.addEventListener('mousedown', e => {
+  const h=e.target.dataset.h;
+  cropDrag={type:h?'resize':'move',handle:h||null,sx:e.clientX,sy:e.clientY,sc:{...crop}};
+  e.preventDefault(); e.stopPropagation();
+});
+document.getElementById('btnCropApply').addEventListener('click', applyCropAction);
+document.getElementById('btnCropReset').addEventListener('click', initCropBox);
+function applyCropAction() {
+  const p=photos.get(currentId); if(!p) return;
+  const img=new Image();
+  img.onload=()=>{
+    const sx=img.naturalWidth/cropImageEl.offsetWidth, sy=img.naturalHeight/cropImageEl.offsetHeight;
+    const srcX=crop.x*sx, srcY=crop.y*sy, srcW=crop.w*sx, srcH=crop.h*sy;
+    const outW=Math.round(srcW*cropScale/100), outH=Math.round(srcH*cropScale/100);
+    canvas.width=outW; canvas.height=outH;
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+    p.cropped=p.mime==='image/png'?canvas.toDataURL('image/png'):canvas.toDataURL('image/jpeg',1.0);
+    renderCard(currentId);
+    setStatus(`✓ Обрізано! ${outW}×${outH} px`,'done');
+  };
+  img.src=p.original;
+}
+
+// ──────────────────────────────────────────────────────────────
+//  ENHANCE MODE
+// ──────────────────────────────────────────────────────────────
+let zoom=1, panX=0, panY=0;
+let isPanning=false, panSX=0, panSY=0, panOX=0, panOY=0;
+let cmpDragging=false;
+let previewTimer=null;
+
+function initEnhanceMode() {
+  const p=photos.get(currentId); if(!p) return;
+  const base=getBase(p);
+  imgBefore.src=base;
+  imgAfter.src=p.enhanced||base;
+  imgAfter.style.filter='';
+  loadSliders(p.params);
+  setSplit(50);
+  resetZoomPan();
+  imgAfter.onload=()=>requestAnimationFrame(syncSizes);
+  if(imgAfter.complete&&imgAfter.naturalWidth) requestAnimationFrame(syncSizes);
+}
+function syncSizes() {
+  const w=imgAfter.offsetWidth, h=imgAfter.offsetHeight;
+  if(!w||!h) return;
+  compareOuter.style.width=w+'px'; compareOuter.style.height=h+'px';
+  imgBefore.style.width=w+'px';    imgBefore.style.height=h+'px';
+}
+function applyZoomPan() { compareOuter.style.transform=`translate(${panX}px,${panY}px) scale(${zoom})`; compareOuter.classList.toggle('zoomed',zoom>1); }
+function resetZoomPan()  { zoom=1;panX=0;panY=0; compareOuter.style.transform=''; compareOuter.classList.remove('zoomed','panning'); }
+
+document.querySelector('.image-area').addEventListener('wheel', e=>{
+  if(currentMode!=='enhance') return;
+  e.preventDefault();
+  const f=e.deltaY<0?1.15:1/1.15;
+  zoom=Math.max(1,Math.min(8,zoom*f));
+  if(zoom===1){panX=0;panY=0;}
+  applyZoomPan();
+},{passive:false});
+compareOuter.addEventListener('dblclick', resetZoomPan);
+compareOuter.addEventListener('mousedown', e=>{
+  if(e.target===cmpHandle||zoom<=1) return;
+  isPanning=true; panSX=e.clientX; panSY=e.clientY; panOX=panX; panOY=panY;
+  compareOuter.classList.add('panning'); e.preventDefault();
+});
+
+function setSplit(pct) { beforeClip.style.width=pct+'%'; cmpHandle.style.left=pct+'%'; }
+cmpHandle.addEventListener('mousedown', e=>{cmpDragging=true;e.preventDefault();e.stopPropagation();});
+cmpHandle.addEventListener('touchstart', e=>{cmpDragging=true;e.preventDefault();},{passive:false});
+document.addEventListener('touchmove', e=>{
+  if(!cmpDragging) return;
+  const t=e.touches[0], rect=compareOuter.getBoundingClientRect();
+  setSplit(clamp((t.clientX-rect.left)/rect.width*100,0,100));
+},{passive:true});
+document.addEventListener('touchend', ()=>{cmpDragging=false;});
+
+function loadSliders(params) {
+  Object.keys(SL).forEach(k=>{ SL[k].value=params[k]; VL[k].textContent=k==='denoise'?Math.round(params[k]):Number(params[k]).toFixed(1); });
+  updateCssPreview();
+}
+Object.keys(SL).forEach(k=>{
+  SL[k].addEventListener('input',()=>{
+    const v=parseFloat(SL[k].value);
+    VL[k].textContent=k==='denoise'?Math.round(v):v.toFixed(1);
+    const p=photos.get(currentId); if(p) p.params[k]=v;
+    updateCssPreview();
+    if(k==='sharpness'||k==='denoise'){
+      clearTimeout(previewTimer);
+      setStatus('<span class="spin"></span> Розраховую…','processing');
+      previewTimer=setTimeout(autoPreview,550);
+    }
+  });
+});
+function updateCssPreview() {
+  imgAfter.style.filter=`brightness(${SL.brightness.value}) contrast(${SL.contrast.value}) saturate(${SL.saturation.value})`;
+}
+function applyPreset(name) {
+  const p=photos.get(currentId); if(!p||!PRESETS[name]) return;
+  p.params={...PRESETS[name]}; loadSliders(p.params);
+}
+async function autoPreview() {
+  const p=photos.get(currentId); if(!p) return;
+  try {
+    const res=await fetch('/api/enhance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:getBase(p),...p.params})});
+    const data=await res.json();
+    if(data.error) return;
+    p.enhanced=data.enhanced; p.aiDone=false;
+    imgAfter.style.filter=''; imgAfter.src=data.enhanced;
+    imgAfter.onload=()=>requestAnimationFrame(syncSizes);
+    setStatus(''); renderCard(currentId);
+  } catch(_){setStatus('');}
+}
+document.getElementById('btnProcess').addEventListener('click', processImage);
+document.getElementById('btnAi').addEventListener('click', aiEnhance);
+document.getElementById('btnEnhReset').addEventListener('click', resetEnhance);
+async function processImage() {
+  const p=photos.get(currentId); if(!p) return;
+  clearTimeout(previewTimer); setBusy(true);
+  setStatus('<span class="spin"></span> Обробка…','processing');
+  try {
+    const res=await fetch('/api/enhance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:getBase(p),...p.params})});
+    const data=await res.json(); if(data.error) throw new Error(data.error);
+    p.enhanced=data.enhanced; p.aiDone=false;
+    imgAfter.style.filter=''; imgAfter.src=data.enhanced;
+    imgAfter.onload=()=>requestAnimationFrame(syncSizes);
+    setStatus('✓ Готово!','done'); renderCard(currentId);
+  } catch(e){setStatus('Помилка: '+e.message,'error');}
+  finally{setBusy(false);}
+}
+async function aiEnhance() {
+  const p=photos.get(currentId); if(!p) return;
+  clearTimeout(previewTimer); setBusy(true);
+  setStatus('<span class="spin"></span> AI обробка…','processing');
+  try {
+    const res=await fetch('/api/ai-enhance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:getBase(p),scale:2})});
+    const data=await res.json();
+    if(data.error==='not_installed'){setStatus('pip install opencv-contrib-python-headless','error');return;}
+    if(data.error) throw new Error(data.error);
+    p.enhanced=data.enhanced; p.aiDone=true;
+    imgAfter.style.filter=''; imgAfter.src=data.enhanced;
+    imgAfter.onload=()=>requestAnimationFrame(syncSizes);
+    setStatus('✦ AI готово! ×2','done'); renderCard(currentId);
+  } catch(e){setStatus('Помилка: '+e.message,'error');}
+  finally{setBusy(false);}
+}
+function resetEnhance() {
+  const p=photos.get(currentId); if(!p) return;
+  p.params=defParams(); p.enhanced=null; p.aiDone=false;
+  loadSliders(p.params); resetZoomPan();
+  imgAfter.style.filter=''; imgAfter.src=getBase(p);
+  imgAfter.onload=()=>requestAnimationFrame(syncSizes);
+  setStatus(''); renderCard(currentId);
+}
+function setBusy(v) { ['btnProcess','btnAi','btnEnhReset'].forEach(id=>document.getElementById(id).disabled=v); }
+function setStatus(html,type='') { statusMsg.innerHTML=html; statusMsg.className='status-msg'+(type?' '+type:''); }
+
+// ── Global mousemove / mouseup ─────────────────────────────────
+document.addEventListener('mousemove', e => {
+  // Thumbnail pan
+  if (thumbDrag) {
+    const p=photos.get(thumbDrag.id); if(!p){thumbDrag=null;return;}
+    const dx=e.clientX-thumbDrag.lastX, dy=e.clientY-thumbDrag.lastY;
+    thumbDrag.lastX=e.clientX; thumbDrag.lastY=e.clientY;
+    const tw=photoGrid.querySelector(`.thumb-wrap[data-id="${thumbDrag.id}"]`); if(!tw) return;
+    const {width:W,height:H}=tw.getBoundingClientRect();
+    const ia=p.natW/p.natH, ca=W/H;
+    let exX=0,exY=0;
+    if(ia>ca){exX=p.natW*(H/p.natH)-W;}else{exY=p.natH*(W/p.natW)-H;}
+    if(exX>0.5) p.posX=clamp(p.posX-dx/exX*100,0,100);
+    if(exY>0.5) p.posY=clamp(p.posY-dy/exY*100,0,100);
+    const imgEl=tw.querySelector('img'); if(imgEl) imgEl.style.objectPosition=`${p.posX}% ${p.posY}%`;
+    return;
+  }
+  // Enhance pan
+  if (isPanning) { panX=panOX+(e.clientX-panSX); panY=panOY+(e.clientY-panSY); applyZoomPan(); return; }
+  // Comparison handle
+  if (cmpDragging) { const rect=compareOuter.getBoundingClientRect(); setSplit(clamp((e.clientX-rect.left)/rect.width*100,0,100)); return; }
+  // Crop box drag
+  if (cropDrag) {
+    const dx=e.clientX-cropDrag.sx, dy=e.clientY-cropDrag.sy, s=cropDrag.sc;
+    if(cropDrag.type==='move'){crop.x=s.x+dx;crop.y=s.y+dy;crop.w=s.w;crop.h=s.h;}
+    else {
+      const h=cropDrag.handle; let nw=s.w,nx=s.x,ny=s.y;
+      if     (h==='se'){nw=s.w+dx;}
+      else if(h==='sw'){nw=s.w-dx;nx=s.x+s.w-nw;}
+      else if(h==='ne'){nw=s.w+dx;ny=s.y+s.h-nw/cropRatio;}
+      else if(h==='nw'){nw=s.w-dx;nx=s.x+s.w-nw;ny=s.y+s.h-nw/cropRatio;}
+      else if(h==='e'||h==='w'){nw=h==='e'?s.w+dx:s.w-dx;if(h==='w')nx=s.x+s.w-nw;ny=s.y+(s.h-nw/cropRatio)/2;}
+      else if(h==='n'||h==='s'){
+        const nh=h==='s'?s.h+dy:s.h-dy; nw=nh*cropRatio; nx=s.x+(s.w-nw)/2; ny=h==='n'?s.y+s.h-nh:s.y;
+        crop={x:nx,y:ny,w:nw,h:nh}; constrainCrop(); applyCropBox(); return;
+      }
+      crop={x:nx,y:ny,w:nw,h:nw/cropRatio};
+    }
+    constrainCrop(); applyCropBox();
+  }
+});
+
+document.addEventListener('mouseup', () => {
+  if(thumbDrag){const tw=photoGrid.querySelector(`.thumb-wrap[data-id="${thumbDrag.id}"]`);if(tw)tw.classList.remove('dragging');thumbDrag=null;}
+  cropDrag=null; cmpDragging=false;
+  if(isPanning){isPanning=false;compareOuter.classList.remove('panning');}
+});
+
+window.addEventListener('resize', () => { if(editorModal.classList.contains('active')&&currentMode==='enhance') requestAnimationFrame(syncSizes); });
+</script>
+</body>
+</html>
