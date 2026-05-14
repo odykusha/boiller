@@ -1,6 +1,5 @@
 FROM python:3.12-slim
 
-# Встановлюємо системні пакети
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         curl \
@@ -12,7 +11,7 @@ RUN apt-get update && \
         libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Базові пакети
+# Базові пакети (без PyTorch)
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
         requests \
@@ -28,21 +27,22 @@ RUN pip install --no-cache-dir --upgrade pip && \
         onnxruntime \
         rembg
 
-# PyTorch CPU (окремий шар для кешування)
+# PyTorch CPU — окремий шар для кешування
 RUN pip install --no-cache-dir \
-        torch torchvision \
-        --index-url https://download.pytorch.org/whl/cpu
+    torch torchvision \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# AI моделі
-RUN pip install --no-cache-dir \
-        basicsr \
-        facexlib \
-        realesrgan \
-        gfpgan \
-        deoldify
+# AI пакети — --no-build-isolation щоб не перезавантажувати torch як build-dep
+RUN pip install --no-cache-dir --no-build-isolation \
+    basicsr \
+    facexlib \
+    gfpgan && \
+    find /usr/local/lib -path "*/basicsr/*" -name "*.py" -exec \
+        sed -i 's/from torchvision\.transforms\.functional_tensor import/from torchvision.transforms.functional import/g' {} \;
 
-# CodeFormer (немає офіційного pip-пакету)
-RUN pip install --no-cache-dir git+https://github.com/sczhou/CodeFormer.git
+# basicsr замінює opencv-contrib на opencv-python — відновлюємо contrib
+RUN pip install --no-cache-dir --force-reinstall opencv-contrib-python-headless
 
-# Встановлюємо робочу директорію
+
+
 WORKDIR /workspace

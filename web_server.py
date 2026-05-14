@@ -5,7 +5,7 @@ from flask import Flask, render_template, jsonify, send_from_directory, request
 from flask_cors import CORS
 from data_storage import storage
 import os
-from photo_enhancer import enhance, ai_enhance, realesrgan_upscale, gfpgan_restore, codeformer_restore, deoldify_colorize, remove_bg
+from photo_enhancer import enhance, ai_enhance, gfpgan_restore, remove_bg
 
 app = Flask(__name__)
 CORS(app)
@@ -62,44 +62,11 @@ def api_ai_enhance():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/realesrgan', methods=['POST'])
-def api_realesrgan():
-    data = request.get_json()
-    try:
-        result = realesrgan_upscale(data['image'], scale=int(data.get('scale', 4)))
-        return jsonify({'enhanced': result})
-    except ImportError as e:
-        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/api/gfpgan', methods=['POST'])
 def api_gfpgan():
     data = request.get_json()
     try:
         result = gfpgan_restore(data['image'])
-        return jsonify({'enhanced': result})
-    except ImportError as e:
-        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/codeformer', methods=['POST'])
-def api_codeformer():
-    data = request.get_json()
-    try:
-        result = codeformer_restore(data['image'], fidelity=float(data.get('fidelity', 0.7)))
-        return jsonify({'enhanced': result})
-    except ImportError as e:
-        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/deoldify', methods=['POST'])
-def api_deoldify():
-    data = request.get_json()
-    try:
-        result = deoldify_colorize(data['image'], render_factor=int(data.get('render_factor', 35)))
         return jsonify({'enhanced': result})
     except ImportError as e:
         return jsonify({'error': 'not_installed', 'message': str(e)}), 503
