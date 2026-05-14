@@ -12,7 +12,7 @@ RUN apt-get update && \
         libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Встановлюємо Python-пакети
+# Базові пакети
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir \
         requests \
@@ -27,6 +27,22 @@ RUN pip install --no-cache-dir --upgrade pip && \
         opencv-contrib-python-headless \
         onnxruntime \
         rembg
+
+# PyTorch CPU (окремий шар для кешування)
+RUN pip install --no-cache-dir \
+        torch torchvision \
+        --index-url https://download.pytorch.org/whl/cpu
+
+# AI моделі
+RUN pip install --no-cache-dir \
+        basicsr \
+        facexlib \
+        realesrgan \
+        gfpgan \
+        deoldify
+
+# CodeFormer (немає офіційного pip-пакету)
+RUN pip install --no-cache-dir git+https://github.com/sczhou/CodeFormer.git
 
 # Встановлюємо робочу директорію
 WORKDIR /workspace
