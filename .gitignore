@@ -3,3 +3,4 @@ __pycache__/
 config.json
 data_history.json
 .idea/
+.DS_Store

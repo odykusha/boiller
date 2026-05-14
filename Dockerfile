@@ -8,6 +8,8 @@ RUN apt-get update && \
         build-essential \
         python3-dev \
         libc6-dev \
+        libglib2.0-0 \
+        libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Встановлюємо Python-пакети
@@ -20,7 +22,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
         pysolarmanv5 \
         python-miio \
         flask \
-        flask-cors
+        flask-cors \
+        numpy \
+        opencv-contrib-python-headless
 
 # Встановлюємо робочу директорію
 WORKDIR /workspace

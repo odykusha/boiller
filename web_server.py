@@ -1,10 +1,11 @@
 """
 Веб-сервер для відображення графіків даних інвертера
 """
-from flask import Flask, render_template, jsonify, send_from_directory
+from flask import Flask, render_template, jsonify, send_from_directory, request
 from flask_cors import CORS
 from data_storage import storage
 import os
+from photo_enhancer import enhance, ai_enhance
 
 app = Flask(__name__)
 CORS(app)  # Дозволяємо CORS для API
@@ -42,6 +43,35 @@ def get_latest():
     if latest:
         return jsonify(latest)
     return jsonify({'error': 'No data available'}), 404
+
+@app.route('/api/enhance', methods=['POST'])
+def api_enhance():
+    data = request.get_json()
+    try:
+        result = enhance(
+            data['image'],
+            contrast=float(data.get('contrast', 1.0)),
+            brightness=float(data.get('brightness', 1.0)),
+            saturation=float(data.get('saturation', 1.0)),
+            sharpness=float(data.get('sharpness', 1.0)),
+            denoise=float(data.get('denoise', 0)),
+        )
+        return jsonify({'enhanced': result})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai-enhance', methods=['POST'])
+def api_ai_enhance():
+    data = request.get_json()
+    try:
+        result = ai_enhance(data['image'], scale=int(data.get('scale', 2)))
+        return jsonify({'enhanced': result})
+    except ImportError as e:
+        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/download/<path:filename>')
 def download_app(filename):
