@@ -127,13 +127,13 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
 .cmp-before { left:10px; } .cmp-after { right:10px; }
 
 /* ── Controls panel ── */
-.controls-panel { width: 280px; flex-shrink: 0; background: #1c1c1e; border-left: 1px solid #2c2c2e; overflow-y: auto; padding: 16px; }
+.controls-panel { width: 280px; flex-shrink: 0; background: #1c1c1e; border-left: 1px solid #2c2c2e; overflow-y: auto; overflow-x: hidden; padding: 16px; }
 .ctrl-section { margin-bottom: 14px; }
 .ctrl-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #636366; margin-bottom: 10px; }
 .ctrl-divider { height: 1px; background: #2c2c2e; margin: 6px 0 14px; }
 .ctrl-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .ctrl-row label { font-size: 12px; color: #ebebf5; width: 105px; flex-shrink: 0; }
-.ctrl-row input[type=range] { flex:1; -webkit-appearance:none; appearance:none; height:4px; background:#3a3a3c; border-radius:2px; outline:none; cursor:pointer; }
+.ctrl-row input[type=range] { flex:1; min-width:0; -webkit-appearance:none; appearance:none; height:4px; background:#3a3a3c; border-radius:2px; outline:none; cursor:pointer; }
 .ctrl-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; background:#0071e3; border-radius:50%; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,0.4); }
 .ctrl-row input[type=range]::-moz-range-thumb { width:16px; height:16px; background:#0071e3; border:none; border-radius:50%; cursor:pointer; }
 .ctrl-val { font-size:11px; color:#86868b; width:28px; text-align:right; flex-shrink:0; font-variant-numeric:tabular-nums; }
@@ -264,16 +264,6 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
           </div>
         </div>
         <div class="ctrl-divider"></div>
-        <div class="ctrl-section">
-          <div class="ctrl-title">Розмір виводу</div>
-          <div class="ctrl-row">
-            <label>Масштаб</label>
-            <input type="range" id="slScale" min="10" max="100" step="1" value="100">
-            <span class="ctrl-val" id="vScale">100%</span>
-          </div>
-          <div class="dim-info" id="dimInfo">— × — px</div>
-        </div>
-        <div class="ctrl-divider"></div>
         <div class="ctrl-btns">
           <button class="btn btn-blue" id="btnCropApply">✂ Обрізати</button>
           <button class="btn btn-gray btn-sm" id="btnCropReset">Скинути рамку</button>
@@ -303,6 +293,16 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
             <button class="btn btn-gray btn-sm" onclick="applyPreset('sharp')">Sharp</button>
             <button class="btn btn-gray btn-sm" onclick="applyPreset('denoise')">Denoise</button>
           </div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-section">
+          <div class="ctrl-title">Розмір виводу</div>
+          <div class="ctrl-row">
+            <label>Масштаб</label>
+            <input type="range" id="slScale" min="10" max="100" step="1" value="100">
+            <span class="ctrl-val" id="vScale">100%</span>
+          </div>
+          <div class="dim-info" id="dimInfo">— × — px</div>
         </div>
         <div class="ctrl-divider"></div>
         <div class="ctrl-btns">
@@ -341,7 +341,8 @@ let globalAuto = true, globalW = 0, globalH = 0;
 function defParams() { return { brightness:1.0, contrast:1.0, saturation:1.0, sharpness:1.0, denoise:0 }; }
 function defPhoto(orig, name, mime, nw, nh) {
   return { original:orig, cropped:null, enhanced:null, name, mime,
-           natW:nw, natH:nh, ratioW:null, ratioH:null, posX:50, posY:50,
+           natW:nw, natH:nh, croppedW:null, croppedH:null,
+           ratioW:null, ratioH:null, posX:50, posY:50,
            params:defParams(), aiDone:false };
 }
 function getBase(p)  { return p.cropped  || p.original; }
@@ -506,7 +507,8 @@ function removePhoto(id) { photos.delete(id); document.getElementById(`card-${id
 function resetOne(id) {
   const p = photos.get(id);
   if (!p) return;
-  p.cropped=null; p.enhanced=null; p.aiDone=false; p.params=defParams(); p.posX=50; p.posY=50; p.ratioW=null; p.ratioH=null;
+  p.cropped=null; p.croppedW=null; p.croppedH=null;
+  p.enhanced=null; p.aiDone=false; p.params=defParams(); p.posX=50; p.posY=50; p.ratioW=null; p.ratioH=null;
   renderCard(id);
 }
 function dlOne(id) {
@@ -577,31 +579,10 @@ document.querySelectorAll('.mode-tab').forEach(btn => btn.addEventListener('clic
 let cropRatio = 2/3;
 let crop = { x:0, y:0, w:0, h:0 };
 let cropDrag = null;
-let cropScale = 100;
-
-const slScale   = document.getElementById('slScale');
-const vScale    = document.getElementById('vScale');
-const dimInfo   = document.getElementById('dimInfo');
-
-slScale.addEventListener('input', () => {
-  cropScale = parseInt(slScale.value);
-  vScale.textContent = cropScale + '%';
-  updateDimInfo();
-});
-
-function updateDimInfo() {
-  const p = photos.get(currentId);
-  if (!p || !cropImageEl.offsetWidth) { dimInfo.textContent = '— × — px'; return; }
-  const sx = p.natW / cropImageEl.offsetWidth;
-  const outW = Math.round(crop.w * sx * cropScale / 100);
-  const outH = Math.round(crop.h * sx * cropScale / 100);
-  dimInfo.textContent = outW + ' × ' + outH + ' px';
-}
 
 function initCropMode() {
   const p = photos.get(currentId);
   if (!p) return;
-  cropScale = 100; slScale.value = 100; vScale.textContent = '100%';
   const [rw, rh] = cardRatioWH(p);
   setModalRatio(rw, rh, true);
   cropImageEl.src = p.original;
@@ -648,7 +629,7 @@ function applyRatioToCrop() {
   crop={x:cx-nw/2,y:cy-nh/2,w:nw,h:nh};
   constrainCrop(); applyCropBox();
 }
-function applyCropBox() { cropBoxEl.style.cssText=`left:${crop.x}px;top:${crop.y}px;width:${crop.w}px;height:${crop.h}px`; updateDimInfo(); }
+function applyCropBox() { cropBoxEl.style.cssText=`left:${crop.x}px;top:${crop.y}px;width:${crop.w}px;height:${crop.h}px`; }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 function constrainCrop() {
   const W=cropImageEl.offsetWidth, H=cropImageEl.offsetHeight;
@@ -668,13 +649,14 @@ function applyCropAction() {
   const img=new Image();
   img.onload=()=>{
     const sx=img.naturalWidth/cropImageEl.offsetWidth, sy=img.naturalHeight/cropImageEl.offsetHeight;
-    const srcX=crop.x*sx, srcY=crop.y*sy, srcW=crop.w*sx, srcH=crop.h*sy;
-    const outW=Math.round(srcW*cropScale/100), outH=Math.round(srcH*cropScale/100);
-    canvas.width=outW; canvas.height=outH;
-    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+    const srcX=crop.x*sx, srcY=crop.y*sy, srcW=Math.round(crop.w*sx), srcH=Math.round(crop.h*sy);
+    canvas.width=srcW; canvas.height=srcH;
+    ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
     p.cropped=p.mime==='image/png'?canvas.toDataURL('image/png'):canvas.toDataURL('image/jpeg',1.0);
+    p.croppedW=srcW; p.croppedH=srcH;
+    p.enhanced=null; p.aiDone=false;
     renderCard(currentId);
-    setStatus(`✓ Обрізано! ${outW}×${outH} px`,'done');
+    setStatus(`✓ Обрізано! ${srcW}×${srcH} px`,'done');
   };
   img.src=p.original;
 }
@@ -686,9 +668,43 @@ let zoom=1, panX=0, panY=0;
 let isPanning=false, panSX=0, panSY=0, panOX=0, panOY=0;
 let cmpDragging=false;
 let previewTimer=null;
+let enhScale=100;
+
+const slScale  = document.getElementById('slScale');
+const vScale   = document.getElementById('vScale');
+const dimInfo  = document.getElementById('dimInfo');
+
+slScale.addEventListener('input', () => {
+  enhScale = parseInt(slScale.value);
+  vScale.textContent = enhScale + '%';
+  updateDimInfo();
+});
+
+function updateDimInfo() {
+  const p = photos.get(currentId);
+  if (!p) { dimInfo.textContent = '— × — px'; return; }
+  const baseW = p.croppedW || p.natW, baseH = p.croppedH || p.natH;
+  dimInfo.textContent = Math.round(baseW*enhScale/100) + ' × ' + Math.round(baseH*enhScale/100) + ' px';
+}
+
+function applyEnhScale(dataUrl, mime) {
+  return new Promise(resolve => {
+    if (enhScale === 100) { resolve(dataUrl); return; }
+    const img = new Image();
+    img.onload = () => {
+      const w=Math.round(img.naturalWidth*enhScale/100), h=Math.round(img.naturalHeight*enhScale/100);
+      canvas.width=w; canvas.height=h;
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(mime==='image/png' ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg',1.0));
+    };
+    img.src = dataUrl;
+  });
+}
 
 function initEnhanceMode() {
   const p=photos.get(currentId); if(!p) return;
+  enhScale=100; slScale.value=100; vScale.textContent='100%';
+  updateDimInfo();
   const base=getBase(p);
   imgBefore.src=base;
   imgAfter.src=p.enhanced||base;
@@ -779,10 +795,11 @@ async function processImage() {
   try {
     const res=await fetch('/api/enhance',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:getBase(p),...p.params})});
     const data=await res.json(); if(data.error) throw new Error(data.error);
-    p.enhanced=data.enhanced; p.aiDone=false;
-    imgAfter.style.filter=''; imgAfter.src=data.enhanced;
+    p.enhanced=await applyEnhScale(data.enhanced, p.mime); p.aiDone=false;
+    imgAfter.style.filter=''; imgAfter.src=p.enhanced;
     imgAfter.onload=()=>requestAnimationFrame(syncSizes);
-    setStatus('✓ Готово!','done'); renderCard(currentId);
+    const {w:ow,h:oh}=enhOutDims(p);
+    setStatus(`✓ Готово! ${ow}×${oh} px`,'done'); renderCard(currentId);
   } catch(e){setStatus('Помилка: '+e.message,'error');}
   finally{setBusy(false);}
 }
@@ -795,16 +812,23 @@ async function aiEnhance() {
     const data=await res.json();
     if(data.error==='not_installed'){setStatus('pip install opencv-contrib-python-headless','error');return;}
     if(data.error) throw new Error(data.error);
-    p.enhanced=data.enhanced; p.aiDone=true;
-    imgAfter.style.filter=''; imgAfter.src=data.enhanced;
+    p.enhanced=await applyEnhScale(data.enhanced, p.mime); p.aiDone=true;
+    imgAfter.style.filter=''; imgAfter.src=p.enhanced;
     imgAfter.onload=()=>requestAnimationFrame(syncSizes);
-    setStatus('✦ AI готово! ×2','done'); renderCard(currentId);
+    const {w:ow,h:oh}=enhOutDims(p);
+    setStatus(`✦ AI готово! ×2 → ${ow}×${oh} px`,'done'); renderCard(currentId);
   } catch(e){setStatus('Помилка: '+e.message,'error');}
   finally{setBusy(false);}
+}
+function enhOutDims(p) {
+  const bw=p.croppedW||p.natW, bh=p.croppedH||p.natH;
+  return {w:Math.round(bw*enhScale/100), h:Math.round(bh*enhScale/100)};
 }
 function resetEnhance() {
   const p=photos.get(currentId); if(!p) return;
   p.params=defParams(); p.enhanced=null; p.aiDone=false;
+  enhScale=100; slScale.value=100; vScale.textContent='100%';
+  updateDimInfo();
   loadSliders(p.params); resetZoomPan();
   imgAfter.style.filter=''; imgAfter.src=getBase(p);
   imgAfter.onload=()=>requestAnimationFrame(syncSizes);
