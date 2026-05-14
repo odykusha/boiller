@@ -37,29 +37,45 @@ def enhance(data_url: str, *, contrast=1.0, brightness=1.0,
     return _encode(img)
 
 
-def ai_enhance(data_url: str, scale: int = 2) -> str:
-    """AI super-resolution via OpenCV DNN (FSRCNN). Requires opencv-contrib-python-headless."""
+def _sr_enhance(data_url: str, model_name: str, scale: int, repo: str) -> str:
     if not hasattr(cv2, 'dnn_superres'):
         raise ImportError('pip install opencv-contrib-python-headless')
-
-    import os
-    import urllib.request
-
+    import os, urllib.request
     models_dir = os.path.join(os.path.dirname(__file__), 'models')
     os.makedirs(models_dir, exist_ok=True)
-    model_path = os.path.join(models_dir, f'FSRCNN_x{scale}.pb')
-
+    fname = f'{model_name.upper()}_x{scale}.pb'
+    model_path = os.path.join(models_dir, fname)
     if not os.path.exists(model_path):
-        url = (f'https://raw.githubusercontent.com/Saafke/FSRCNN_Tensorflow/'
-               f'master/models/FSRCNN_x{scale}.pb')
-        urllib.request.urlretrieve(url, model_path)
-
+        urllib.request.urlretrieve(f'{repo}/{fname}', model_path)
     img = _decode(data_url)
     arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
     sr.readModel(model_path)
-    sr.setModel('fsrcnn', scale)
+    sr.setModel(model_name, scale)
     output = sr.upsample(arr)
-
     return _encode(Image.fromarray(cv2.cvtColor(output, cv2.COLOR_BGR2RGB)))
+
+
+def ai_enhance(data_url: str, scale: int = 2) -> str:
+    """FSRCNN super-resolution (~30 KB model, fast)."""
+    return _sr_enhance(data_url, 'fsrcnn', scale,
+                       'https://raw.githubusercontent.com/Saafke/FSRCNN_Tensorflow/master/models')
+
+
+def edsr_enhance(data_url: str, scale: int = 4) -> str:
+    """EDSR super-resolution (~38 MB model, best quality)."""
+    return _sr_enhance(data_url, 'edsr', scale,
+                       'https://raw.githubusercontent.com/Saafke/EDSR_Tensorflow/master/models')
+
+
+def remove_bg(data_url: str) -> str:
+    """Remove background via rembg (ONNX-based, no PyTorch)."""
+    try:
+        from rembg import remove as rembg_remove
+    except ImportError:
+        raise ImportError('pip install rembg onnxruntime')
+    img = _decode(data_url)
+    result = rembg_remove(img)  # returns RGBA PIL Image
+    buf = io.BytesIO()
+    result.save(buf, format='PNG')
+    return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()

@@ -5,7 +5,7 @@ from flask import Flask, render_template, jsonify, send_from_directory, request
 from flask_cors import CORS
 from data_storage import storage
 import os
-from photo_enhancer import enhance, ai_enhance
+from photo_enhancer import enhance, ai_enhance, edsr_enhance, remove_bg
 
 app = Flask(__name__)
 CORS(app)  # Дозволяємо CORS для API
@@ -66,6 +66,30 @@ def api_ai_enhance():
     data = request.get_json()
     try:
         result = ai_enhance(data['image'], scale=int(data.get('scale', 2)))
+        return jsonify({'enhanced': result})
+    except ImportError as e:
+        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/edsr-enhance', methods=['POST'])
+def api_edsr_enhance():
+    data = request.get_json()
+    try:
+        result = edsr_enhance(data['image'], scale=int(data.get('scale', 4)))
+        return jsonify({'enhanced': result})
+    except ImportError as e:
+        return jsonify({'error': 'not_installed', 'message': str(e)}), 503
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/remove-bg', methods=['POST'])
+def api_remove_bg():
+    data = request.get_json()
+    try:
+        result = remove_bg(data['image'])
         return jsonify({'enhanced': result})
     except ImportError as e:
         return jsonify({'error': 'not_installed', 'message': str(e)}), 503

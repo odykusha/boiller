@@ -24,7 +24,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
         flask \
         flask-cors \
         numpy \
-        opencv-contrib-python-headless
+        opencv-contrib-python-headless \
+        onnxruntime \
+        rembg
 
 # Встановлюємо робочу директорію
 WORKDIR /workspace
