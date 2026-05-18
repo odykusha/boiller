@@ -36,7 +36,8 @@ def _get_model(filename: str, url: str) -> str:
 
 
 def enhance(data_url: str, *, contrast=1.0, brightness=1.0,
-            saturation=1.0, sharpness=1.0, denoise=0) -> str:
+            saturation=1.0, sharpness=1.0, denoise=0,
+            shadows=0.0, midtones=0.0, highlights=0.0) -> str:
     img = _decode(data_url)
     if brightness != 1.0:
         img = ImageEnhance.Brightness(img).enhance(brightness)
@@ -44,6 +45,14 @@ def enhance(data_url: str, *, contrast=1.0, brightness=1.0,
         img = ImageEnhance.Contrast(img).enhance(contrast)
     if saturation != 1.0:
         img = ImageEnhance.Color(img).enhance(saturation)
+    if shadows != 0.0 or midtones != 0.0 or highlights != 0.0:
+        arr = np.array(img).astype(np.float32) / 255.
+        lum = (0.299 * arr[:,:,0] + 0.587 * arr[:,:,1] + 0.114 * arr[:,:,2])[:,:,None]
+        shadow_w    = np.clip(1 - lum * 2, 0, 1)
+        highlight_w = np.clip(lum * 2 - 1, 0, 1)
+        midtone_w   = 1 - shadow_w - highlight_w
+        arr = np.clip(arr + shadow_w * shadows + midtone_w * midtones + highlight_w * highlights, 0, 1)
+        img = Image.fromarray((arr * 255).astype(np.uint8))
     if denoise > 0:
         arr = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
         h = max(1, int(denoise))
@@ -100,73 +109,6 @@ def gfpgan_restore(data_url: str) -> str:
 
 
 
-def colorize_bw(data_url: str) -> str:
-    """Colorize B&W photos using ECCV16 model (Zhang et al., no extra packages)."""
-    import torch
-    import torch.nn as nn
-    from skimage import color as skcolor
-
-    model_path = _get_model(
-        'eccv16_colorizer.pth',
-        'https://colorizers.s3.us-east-2.amazonaws.com/eccv16-opt.pth',
-    )
-
-    class _ECCV16(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.model1 = nn.Sequential(
-                nn.Conv2d(1,64,3,1,1), nn.ReLU(True), nn.Conv2d(64,64,3,2,1), nn.ReLU(True), nn.BatchNorm2d(64))
-            self.model2 = nn.Sequential(
-                nn.Conv2d(64,128,3,1,1), nn.ReLU(True), nn.Conv2d(128,128,3,2,1), nn.ReLU(True), nn.BatchNorm2d(128))
-            self.model3 = nn.Sequential(
-                nn.Conv2d(128,256,3,1,1), nn.ReLU(True), nn.Conv2d(256,256,3,1,1), nn.ReLU(True),
-                nn.Conv2d(256,256,3,2,1), nn.ReLU(True), nn.BatchNorm2d(256))
-            self.model4 = nn.Sequential(
-                nn.Conv2d(256,512,3,1,1), nn.ReLU(True), nn.Conv2d(512,512,3,1,1), nn.ReLU(True),
-                nn.Conv2d(512,512,3,1,1), nn.ReLU(True), nn.BatchNorm2d(512))
-            self.model5 = nn.Sequential(
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True),
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True),
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True), nn.BatchNorm2d(512))
-            self.model6 = nn.Sequential(
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True),
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True),
-                nn.Conv2d(512,512,3,dilation=2,stride=1,padding=2), nn.ReLU(True), nn.BatchNorm2d(512))
-            self.model7 = nn.Sequential(
-                nn.Conv2d(512,512,3,1,1), nn.ReLU(True), nn.Conv2d(512,512,3,1,1), nn.ReLU(True),
-                nn.Conv2d(512,512,3,1,1), nn.ReLU(True), nn.BatchNorm2d(512))
-            self.model8 = nn.Sequential(
-                nn.ConvTranspose2d(512,256,4,2,1), nn.ReLU(True),
-                nn.Conv2d(256,256,3,1,1), nn.ReLU(True), nn.Conv2d(256,256,3,1,1), nn.ReLU(True),
-                nn.Conv2d(256,313,1))
-            self.softmax = nn.Softmax(dim=1)
-            self.model_out = nn.Conv2d(313,2,1,bias=False)
-            self.upsample4 = nn.Upsample(scale_factor=4, mode='bilinear', align_corners=False)
-
-        def forward(self, x):
-            x = (x - 50.) / 100.
-            x = self.model8(self.model7(self.model6(self.model5(
-                self.model4(self.model3(self.model2(self.model1(x))))))))
-            return self.upsample4(self.model_out(self.softmax(x))) * 110.
-
-    net = _ECCV16()
-    net.load_state_dict(torch.load(model_path, map_location='cpu', weights_only=True))
-    net.eval()
-
-    img = _decode(data_url)
-    img_np = np.array(img).astype(np.float32) / 255.
-    img_lab = skcolor.rgb2lab(img_np)
-    H, W = img_lab.shape[:2]
-
-    img_l_rs = cv2.resize(img_lab[:, :, 0], (256, 256), interpolation=cv2.INTER_LINEAR)
-    tens = torch.from_numpy(img_l_rs[None, None]).float()
-    with torch.no_grad():
-        ab_rs = net(tens)[0].numpy().transpose(1, 2, 0)
-
-    ab_orig = cv2.resize(ab_rs, (W, H), interpolation=cv2.INTER_LINEAR)
-    out_lab = np.concatenate([img_lab[:, :, 0:1], ab_orig], axis=2)
-    out_rgb = np.clip(skcolor.lab2rgb(out_lab), 0, 1)
-    return _encode(Image.fromarray((out_rgb * 255).astype(np.uint8)))
 
 
 def remove_bg(data_url: str) -> str:

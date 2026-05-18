@@ -284,6 +284,13 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
         </div>
         <div class="ctrl-divider"></div>
         <div class="ctrl-section">
+          <div class="ctrl-title">Тони</div>
+          <div class="ctrl-row"><label>Тіні</label><input type="range" id="slShadows" min="-0.5" max="0.5" step="0.05" value="0"><span class="ctrl-val" id="vShadows">0.0</span></div>
+          <div class="ctrl-row"><label>Середні тони</label><input type="range" id="slMidtones" min="-0.5" max="0.5" step="0.05" value="0"><span class="ctrl-val" id="vMidtones">0.0</span></div>
+          <div class="ctrl-row"><label>Світла</label><input type="range" id="slHighlights" min="-0.5" max="0.5" step="0.05" value="0"><span class="ctrl-val" id="vHighlights">0.0</span></div>
+        </div>
+        <div class="ctrl-divider"></div>
+        <div class="ctrl-section">
           <div class="ctrl-title">Різкість та шум</div>
           <div class="ctrl-row"><label>Чіткість</label><input type="range" id="slSharpness" min="0.0" max="4.0" step="0.1" value="1.0"><span class="ctrl-val" id="vSharpness">1.0</span></div>
           <div class="ctrl-row"><label>Шумозаглушення</label><input type="range" id="slDenoise" min="0" max="20" step="1" value="0"><span class="ctrl-val" id="vDenoise">0</span></div>
@@ -315,9 +322,7 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
           <button class="btn btn-purple" id="btnAi">FSRCNN ×2</button>
           <div class="ctrl-title" style="margin-top:4px">Реставрація облич</div>
           <button class="btn btn-purple" id="btnGfpgan">GFPGAN</button>
-          <div class="ctrl-title" style="margin-top:4px">Колоризація</div>
-          <button class="btn btn-purple" id="btnColorize">Розфарбувати ч/б</button>
-          <button class="btn btn-green" id="btnRemoveBg">✂ Видалити фон</button>
+<button class="btn btn-green" id="btnRemoveBg">✂ Видалити фон</button>
           <button class="btn btn-gray btn-sm" id="btnEnhReset">Скинути</button>
         </div>
       </div>
@@ -348,7 +353,7 @@ let currentMode = 'crop';
 // Global crop ratio
 let globalAuto = true, globalW = 0, globalH = 0;
 
-function defParams() { return { brightness:1.0, contrast:1.0, saturation:1.0, sharpness:1.0, denoise:0 }; }
+function defParams() { return { brightness:1.0, contrast:1.0, saturation:1.0, sharpness:1.0, denoise:0, shadows:0.0, midtones:0.0, highlights:0.0 }; }
 function defPhoto(orig, name, mime, nw, nh) {
   return { original:orig, cropped:null, enhanced:null, name, mime,
            natW:nw, natH:nh, croppedW:null, croppedH:null,
@@ -383,8 +388,8 @@ const beforeClip    = document.getElementById('beforeClip');
 const cmpHandle     = document.getElementById('cmpHandle');
 const compareOuter  = document.getElementById('compareOuter');
 const statusMsg     = document.getElementById('statusMsg');
-const SL = { brightness:document.getElementById('slBrightness'), contrast:document.getElementById('slContrast'), saturation:document.getElementById('slSaturation'), sharpness:document.getElementById('slSharpness'), denoise:document.getElementById('slDenoise') };
-const VL = { brightness:document.getElementById('vBrightness'),  contrast:document.getElementById('vContrast'),  saturation:document.getElementById('vSaturation'),  sharpness:document.getElementById('vSharpness'),  denoise:document.getElementById('vDenoise')  };
+const SL = { brightness:document.getElementById('slBrightness'), contrast:document.getElementById('slContrast'), saturation:document.getElementById('slSaturation'), sharpness:document.getElementById('slSharpness'), denoise:document.getElementById('slDenoise'), shadows:document.getElementById('slShadows'), midtones:document.getElementById('slMidtones'), highlights:document.getElementById('slHighlights') };
+const VL = { brightness:document.getElementById('vBrightness'),  contrast:document.getElementById('vContrast'),  saturation:document.getElementById('vSaturation'),  sharpness:document.getElementById('vSharpness'),  denoise:document.getElementById('vDenoise'),  shadows:document.getElementById('vShadows'),  midtones:document.getElementById('vMidtones'),  highlights:document.getElementById('vHighlights')  };
 
 // ── Global ratio bar ───────────────────────────────────────────
 const gRatioWEl = document.getElementById('gRatioW');
@@ -760,16 +765,16 @@ document.addEventListener('touchmove', e=>{
 document.addEventListener('touchend', ()=>{cmpDragging=false;});
 
 function loadSliders(params) {
-  Object.keys(SL).forEach(k=>{ SL[k].value=params[k]; VL[k].textContent=k==='denoise'?Math.round(params[k]):Number(params[k]).toFixed(1); });
+  Object.keys(SL).forEach(k=>{ SL[k].value=params[k]??0; VL[k].textContent=k==='denoise'?Math.round(params[k]):Number(params[k]).toFixed(2); });
   updateCssPreview();
 }
 Object.keys(SL).forEach(k=>{
   SL[k].addEventListener('input',()=>{
     const v=parseFloat(SL[k].value);
-    VL[k].textContent=k==='denoise'?Math.round(v):v.toFixed(1);
+    VL[k].textContent=k==='denoise'?Math.round(v):(k==='shadows'||k==='midtones'||k==='highlights')?v.toFixed(2):v.toFixed(1);
     const p=photos.get(currentId); if(p) p.params[k]=v;
     updateCssPreview();
-    if(k==='sharpness'||k==='denoise'){
+    if(k==='sharpness'||k==='denoise'||k==='shadows'||k==='midtones'||k==='highlights'){
       clearTimeout(previewTimer);
       setStatus('<span class="spin"></span> Розраховую…','processing');
       previewTimer=setTimeout(autoPreview,550);
@@ -798,7 +803,6 @@ async function autoPreview() {
 document.getElementById('btnProcess').addEventListener('click', processImage);
 document.getElementById('btnAi').addEventListener('click', aiEnhance);
 document.getElementById('btnGfpgan').addEventListener('click', gfpgan);
-document.getElementById('btnColorize').addEventListener('click', colorize);
 document.getElementById('btnRemoveBg').addEventListener('click', removeBg);
 document.getElementById('btnEnhReset').addEventListener('click', resetEnhance);
 async function processImage() {
@@ -852,7 +856,6 @@ async function _aiCall(endpoint, body, label, transparent=false) {
   finally{setBusy(false);}
 }
 function gfpgan()      { _aiCall('/api/gfpgan',      {},                 'GFPGAN'); }
-function colorize()    { _aiCall('/api/colorize',    {},                 'Розфарбування'); }
 async function removeBg() {
   const p=photos.get(currentId); if(!p) return;
   clearTimeout(previewTimer); setBusy(true);
@@ -888,7 +891,7 @@ function resetEnhance() {
   imgAfter.onload=()=>requestAnimationFrame(syncSizes);
   setStatus(''); renderCard(currentId);
 }
-function setBusy(v) { ['btnProcess','btnAi','btnGfpgan','btnColorize','btnRemoveBg','btnEnhReset'].forEach(id=>document.getElementById(id).disabled=v); }
+function setBusy(v) { ['btnProcess','btnAi','btnGfpgan','btnRemoveBg','btnEnhReset'].forEach(id=>document.getElementById(id).disabled=v); }
 function setStatus(html,type='') { statusMsg.innerHTML=html; statusMsg.className='status-msg'+(type?' '+type:''); }
 
 // ── Global mousemove / mouseup ─────────────────────────────────
