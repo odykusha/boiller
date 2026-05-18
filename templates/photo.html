@@ -943,6 +943,13 @@ document.addEventListener('mouseup', () => {
 });
 
 window.addEventListener('resize', () => { if(editorModal.classList.contains('active')&&currentMode==='enhance') requestAnimationFrame(syncSizes); });
+
+window.addEventListener('beforeunload', e => {
+  if (photos.size > 0) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 </script>
 </body>
 </html>
