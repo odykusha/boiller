@@ -163,6 +163,27 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
 .status-msg.error      { color:#ff453a; font-size:10px; word-break:break-word; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin { display:inline-block; width:10px; height:10px; border:2px solid #44444a; border-top-color:#ffd60a; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:5px; }
+/* ── Collage Modal ── */
+#collageModal { display: none; position: fixed; inset: 0; z-index: 2000; background: #111; flex-direction: column; }
+#collageModal.active { display: flex; }
+.collage-body { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+.collage-preview-area { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; background: #1a1a1a; padding: 24px; }
+.collage-controls-panel { width: 280px; flex-shrink: 0; background: #1c1c1e; border-left: 1px solid #2c2c2e; overflow-y: auto; overflow-x: hidden; padding: 16px; }
+#collageCanvas { box-shadow: 0 4px 24px rgba(0,0,0,0.5); max-width: 100%; max-height: calc(100vh - 100px); }
+#collageEmptyHint { color: #48484a; font-size: 13px; text-align: center; }
+.col-input { width: 64px; background: #2c2c2e; border: 1px solid #3a3a3c; color: #f5f5f7; border-radius: 5px; padding: 4px 6px; font-size: 12px; font-family: inherit; outline: none; -moz-appearance: textfield; }
+.col-input:focus { border-color: #0071e3; }
+.col-input::-webkit-inner-spin-button, .col-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+.col-pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.col-pos-item { position: relative; overflow: hidden; border-radius: 6px; cursor: grab; user-select: none; -webkit-user-select: none; background: #2c2c2e; border: 1.5px solid transparent; transition: border-color 0.12s; }
+.col-pos-item:hover { border-color: #3a3a3c; }
+.col-pos-item.dragging { cursor: grabbing; border-color: #0071e3; }
+.col-pos-item img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; display: block; }
+.col-pos-label { position: absolute; bottom: 0; left: 0; right: 0; padding: 2px 5px; background: rgba(0,0,0,0.6); font-size: 9px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+.col-pos-mode-bar { position: absolute; top: 4px; right: 4px; display: flex; gap: 2px; z-index: 2; }
+.col-mode-btn { border: none; background: rgba(0,0,0,0.55); color: rgba(255,255,255,0.6); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-family: inherit; line-height: 1.5; transition: background 0.1s, color 0.1s; }
+.col-mode-btn.active { background: #0071e3; color: #fff; }
+.col-mode-btn:hover:not(.active) { color: #fff; background: rgba(0,0,0,0.8); }
 </style>
 </head>
 <body>
@@ -176,6 +197,7 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
   <div class="toolbar">
     <button class="btn btn-blue" id="btnAutoCropAll">Auto-crop all</button>
     <button class="btn btn-blue" id="btnDownloadAll">Завантажити всі</button>
+    <button class="btn btn-green" id="btnCollage">Колаж A4</button>
     <button class="btn btn-gray" id="btnClearAll">Очистити</button>
   </div>
 </header>
@@ -333,6 +355,78 @@ header h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
   </div><!-- /modal-body -->
 </div><!-- /editorModal -->
 
+<!-- Collage Modal -->
+<div id="collageModal">
+  <div class="modal-bar">
+    <h2>Колаж A4</h2>
+    <div class="modal-actions">
+      <button class="btn btn-gray btn-sm" id="btnCollageClose">Закрити</button>
+      <button class="btn btn-green btn-sm" id="btnCollagePrint">🖨 Друк</button>
+      <button class="btn btn-blue btn-sm" id="btnCollageDownload">↓ Завантажити</button>
+    </div>
+  </div>
+  <div class="collage-body">
+    <div class="collage-preview-area" id="collagePreviewArea">
+      <canvas id="collageCanvas" style="display:none"></canvas>
+      <div id="collageEmptyHint">Налаштуйте розмір і натисніть «Переглянути»</div>
+    </div>
+    <div class="collage-controls-panel">
+      <div class="ctrl-section">
+        <div class="ctrl-title">Розмір фото (см)</div>
+        <div class="preset-grid" style="margin-bottom:10px">
+          <button class="btn btn-gray btn-sm col-preset" data-w="9"  data-h="9" >9×9</button>
+          <button class="btn btn-gray btn-sm col-preset" data-w="10" data-h="15">10×15</button>
+          <button class="btn btn-gray btn-sm col-preset" data-w="13" data-h="18">13×18</button>
+          <button class="btn btn-gray btn-sm col-preset" data-w="15" data-h="15">15×15</button>
+        </div>
+        <div class="ctrl-row">
+          <label>Ширина (см)</label>
+          <input type="number" id="colPhotoW" min="0.5" max="29" step="0.5" value="9" class="col-input">
+        </div>
+        <div class="ctrl-row">
+          <label>Висота (см)</label>
+          <input type="number" id="colPhotoH" min="0.5" max="29" step="0.5" value="9" class="col-input">
+        </div>
+        <div id="collageInfo" style="font-size:11px;color:#86868b;margin-top:6px;min-height:16px"></div>
+      </div>
+      <div class="ctrl-divider"></div>
+      <div class="ctrl-section">
+        <div class="ctrl-title">Орієнтація A4</div>
+        <div class="ratio-sel">
+          <button class="btn btn-sm ratio-btn active" id="btnColPortrait">↕ Книжна</button>
+          <button class="btn btn-sm ratio-btn" id="btnColLandscape">↔ Альбомна</button>
+        </div>
+      </div>
+      <div class="ctrl-divider"></div>
+      <div class="ctrl-section">
+        <div class="ctrl-title">Відступ до лінії розрізу (мм)</div>
+        <div class="ctrl-row" style="margin-bottom:0">
+          <input type="range" id="colGap" min="0" max="15" step="0.5" value="0.5">
+          <span class="ctrl-val" id="vColGap" style="width:32px">0.5</span>
+        </div>
+      </div>
+      <div class="ctrl-divider"></div>
+      <div class="ctrl-section">
+        <div class="ctrl-title">Режим та позиція кожного фото</div>
+        <div style="font-size:10px;color:#48484a;margin-bottom:8px">✂ — обрізати · ⬜ — вписати · тягніть для вибору частини</div>
+        <div class="col-pos-grid" id="colPhotoList"></div>
+      </div>
+      <div class="ctrl-divider"></div>
+      <div class="ctrl-section">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#ebebf5;cursor:pointer">
+          <input type="checkbox" id="chkCutLines" checked style="width:14px;height:14px;cursor:pointer;accent-color:#0071e3">
+          Лінії розрізу
+        </label>
+      </div>
+      <div class="ctrl-divider"></div>
+      <div class="ctrl-btns">
+        <button class="btn btn-blue" id="btnCollagePreview">👁 Переглянути</button>
+      </div>
+      <div id="collageStatus" class="status-msg"></div>
+    </div>
+  </div>
+</div>
+
 <canvas id="canvas" style="display:none"></canvas>
 
 <script>
@@ -358,6 +452,7 @@ function defPhoto(orig, name, mime, nw, nh) {
   return { original:orig, cropped:null, enhanced:null, name, mime,
            natW:nw, natH:nh, croppedW:null, croppedH:null,
            ratioW:null, ratioH:null, posX:50, posY:50,
+           colPosX:50, colPosY:50, colFit:false,
            params:defParams(), aiDone:false };
 }
 function getBase(p)  { return p.cropped  || p.original; }
@@ -487,6 +582,7 @@ photoGrid.addEventListener('click', e => {
 
 // Thumbnail drag-to-pan
 let thumbDrag = null;
+let colPosDrag = null;
 photoGrid.addEventListener('mousedown', e => {
   if (e.target.closest('.trat-btn')) return;
   const tw = e.target.closest('.thumb-wrap');
@@ -896,6 +992,22 @@ function setStatus(html,type='') { statusMsg.innerHTML=html; statusMsg.className
 
 // ── Global mousemove / mouseup ─────────────────────────────────
 document.addEventListener('mousemove', e => {
+  // Collage photo position drag
+  if (colPosDrag) {
+    const p = photos.get(colPosDrag.id); if (!p) { colPosDrag = null; return; }
+    const dx = e.clientX - colPosDrag.lastX, dy = e.clientY - colPosDrag.lastY;
+    colPosDrag.lastX = e.clientX; colPosDrag.lastY = e.clientY;
+    const rect = colPosDrag.item.getBoundingClientRect();
+    const ia = p.natW / p.natH, ca = rect.width / rect.height;
+    let exX = 0, exY = 0;
+    if (ia > ca) { exX = p.natW * (rect.height / p.natH) - rect.width; }
+    else          { exY = p.natH * (rect.width  / p.natW) - rect.height; }
+    if (exX > 0.5) p.colPosX = clamp(p.colPosX - dx / exX * 100, 0, 100);
+    if (exY > 0.5) p.colPosY = clamp(p.colPosY - dy / exY * 100, 0, 100);
+    const imgEl = colPosDrag.item.querySelector('img');
+    if (imgEl) imgEl.style.objectPosition = `${p.colPosX}% ${p.colPosY}%`;
+    return;
+  }
   // Thumbnail pan
   if (thumbDrag) {
     const p=photos.get(thumbDrag.id); if(!p){thumbDrag=null;return;}
@@ -940,6 +1052,7 @@ document.addEventListener('mouseup', () => {
   if(thumbDrag){const tw=photoGrid.querySelector(`.thumb-wrap[data-id="${thumbDrag.id}"]`);if(tw)tw.classList.remove('dragging');thumbDrag=null;}
   cropDrag=null; cmpDragging=false;
   if(isPanning){isPanning=false;compareOuter.classList.remove('panning');}
+  if(colPosDrag){colPosDrag.item.classList.remove('dragging');colPosDrag=null;}
 });
 
 window.addEventListener('resize', () => { if(editorModal.classList.contains('active')&&currentMode==='enhance') requestAnimationFrame(syncSizes); });
@@ -949,6 +1062,294 @@ window.addEventListener('beforeunload', e => {
     e.preventDefault();
     e.returnValue = '';
   }
+});
+
+// ── Collage ────────────────────────────────────────────────────
+const A4_W_MM = 210, A4_H_MM = 297, MM_PER_IN = 25.4;
+let colOrientation = 'portrait';
+
+document.getElementById('btnCollage').addEventListener('click', () => {
+  if (!photos.size) return alert('Спочатку додайте фото');
+  document.getElementById('collageModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+  updateCollageInfo();
+  renderCollagePosItems();
+});
+document.getElementById('btnCollageClose').addEventListener('click', () => {
+  document.getElementById('collageModal').classList.remove('active');
+  document.body.style.overflow = '';
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('collageModal').classList.contains('active')) {
+    document.getElementById('collageModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+});
+
+document.getElementById('btnColPortrait').addEventListener('click', () => {
+  colOrientation = 'portrait';
+  document.getElementById('btnColPortrait').classList.add('active');
+  document.getElementById('btnColLandscape').classList.remove('active');
+  updateCollageInfo();
+});
+document.getElementById('btnColLandscape').addEventListener('click', () => {
+  colOrientation = 'landscape';
+  document.getElementById('btnColLandscape').classList.add('active');
+  document.getElementById('btnColPortrait').classList.remove('active');
+  updateCollageInfo();
+});
+
+document.querySelectorAll('.col-preset').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.getElementById('colPhotoW').value = btn.dataset.w;
+    document.getElementById('colPhotoH').value = btn.dataset.h;
+    updateCollageInfo(); renderCollagePosItems();
+  });
+});
+document.getElementById('colPhotoW').addEventListener('input', () => { updateCollageInfo(); renderCollagePosItems(); });
+document.getElementById('colPhotoH').addEventListener('input', () => { updateCollageInfo(); renderCollagePosItems(); });
+
+document.getElementById('colGap').addEventListener('input', () => {
+  document.getElementById('vColGap').textContent = document.getElementById('colGap').value;
+  updateCollageInfo();
+});
+
+
+function updateCollageInfo() {
+  const wCm  = parseFloat(document.getElementById('colPhotoW').value) || 0;
+  const hCm  = parseFloat(document.getElementById('colPhotoH').value) || 0;
+  const gapMm = parseFloat(document.getElementById('colGap').value) || 0;
+  const [pgW, pgH] = colOrientation === 'portrait' ? [A4_W_MM, A4_H_MM] : [A4_H_MM, A4_W_MM];
+  const el = document.getElementById('collageInfo');
+  if (wCm > 0 && hCm > 0) {
+    const wMm = wCm * 10, hMm = hCm * 10;
+    const totalGapMm = gapMm * 2;
+    const cols = Math.floor((pgW + totalGapMm) / (wMm + totalGapMm));
+    const rows = Math.floor((pgH + totalGapMm) / (hMm + totalGapMm));
+    el.textContent = cols > 0 && rows > 0
+      ? `${cols} × ${rows} = ${cols * rows} фото на аркуші`
+      : 'Розмір перевищує аркуш A4';
+  } else {
+    el.textContent = '';
+  }
+}
+
+function loadImgP(src) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+
+function renderCollagePosItems() {
+  const wCm = parseFloat(document.getElementById('colPhotoW').value) || 9;
+  const hCm = parseFloat(document.getElementById('colPhotoH').value) || 9;
+  const container = document.getElementById('colPhotoList');
+  container.innerHTML = '';
+  if (!photos.size) {
+    container.innerHTML = '<div style="font-size:11px;color:#48484a;grid-column:1/-1">Фото ще не додано</div>';
+    return;
+  }
+  photos.forEach((p, id) => {
+    const item = document.createElement('div');
+    item.className = 'col-pos-item';
+    item.dataset.id = id;
+    item.style.aspectRatio = `${wCm} / ${hCm}`;
+    const img = document.createElement('img');
+    img.src = getFinal(p);
+    img.style.objectPosition = `${p.colPosX}% ${p.colPosY}%`;
+    const label = document.createElement('div');
+    label.className = 'col-pos-label';
+    label.textContent = p.name;
+    if (p.colFit) {
+      img.style.objectFit = 'contain'; img.style.background = '#111'; img.style.objectPosition = 'center';
+    } else {
+      img.style.objectPosition = `${p.colPosX}% ${p.colPosY}%`;
+    }
+    item.style.cursor = p.colFit ? 'default' : 'grab';
+
+    const modeBar = document.createElement('div');
+    modeBar.className = 'col-pos-mode-bar';
+    modeBar.innerHTML =
+      `<button class="col-mode-btn${!p.colFit ? ' active' : ''}" data-mode="cover" data-id="${id}">✂</button>` +
+      `<button class="col-mode-btn${p.colFit  ? ' active' : ''}" data-mode="fit"   data-id="${id}">⬜</button>`;
+
+    item.appendChild(img); item.appendChild(modeBar); item.appendChild(label);
+    container.appendChild(item);
+  });
+}
+
+document.getElementById('colPhotoList').addEventListener('click', e => {
+  const btn = e.target.closest('.col-mode-btn');
+  if (!btn) return;
+  const id = parseInt(btn.dataset.id);
+  const p = photos.get(id);
+  if (!p) return;
+  p.colFit = btn.dataset.mode === 'fit';
+  const item = btn.closest('.col-pos-item');
+  item.querySelectorAll('.col-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === (p.colFit ? 'fit' : 'cover')));
+  const img = item.querySelector('img');
+  if (img) {
+    img.style.objectFit    = p.colFit ? 'contain' : 'cover';
+    img.style.background   = p.colFit ? '#111' : '';
+    img.style.objectPosition = p.colFit ? 'center' : `${p.colPosX}% ${p.colPosY}%`;
+  }
+  item.style.cursor = p.colFit ? 'default' : 'grab';
+});
+
+document.getElementById('colPhotoList').addEventListener('mousedown', e => {
+  if (e.target.closest('.col-mode-btn')) return;
+  const item = e.target.closest('.col-pos-item');
+  if (!item) return;
+  const p = photos.get(parseInt(item.dataset.id));
+  if (!p || p.colFit) return;
+  colPosDrag = { id: parseInt(item.dataset.id), item, lastX: e.clientX, lastY: e.clientY };
+  item.classList.add('dragging');
+  e.preventDefault();
+});
+
+async function buildCollageCanvas(dpi) {
+  const wCm = parseFloat(document.getElementById('colPhotoW').value);
+  const hCm = parseFloat(document.getElementById('colPhotoH').value);
+  if (!wCm || !hCm) { alert('Введіть розмір фотографії'); return null; }
+  const [pgW_mm, pgH_mm] = colOrientation === 'portrait' ? [A4_W_MM, A4_H_MM] : [A4_H_MM, A4_W_MM];
+  const pgWpx    = Math.round(pgW_mm  / MM_PER_IN * dpi);
+  const pgHpx    = Math.round(pgH_mm  / MM_PER_IN * dpi);
+  const photoWpx = Math.round(wCm * 10 / MM_PER_IN * dpi);
+  const photoHpx = Math.round(hCm * 10 / MM_PER_IN * dpi);
+  const gapMm  = parseFloat(document.getElementById('colGap').value) || 0;
+  const gapPx  = Math.round(gapMm * 10 / MM_PER_IN * dpi); // per-side margin (photo → cut line)
+  const totalGapPx = gapPx * 2;
+  const cols = Math.floor((pgWpx + totalGapPx) / (photoWpx + totalGapPx));
+  const rows = Math.floor((pgHpx + totalGapPx) / (photoHpx + totalGapPx));
+  if (!cols || !rows) { alert('Розмір фото більший за аркуш A4'); return null; }
+  const total = cols * rows;
+  const photoList = [...photos.values()];
+  if (!photoList.length) { alert('Додайте фото'); return null; }
+
+  // Center the grid on the page
+  const gridW  = cols * photoWpx + (cols - 1) * totalGapPx;
+  const gridH  = rows * photoHpx + (rows - 1) * totalGapPx;
+  const offsetX = Math.round((pgWpx - gridW) / 2);
+  const offsetY = Math.round((pgHpx - gridH) / 2);
+  const stepX  = photoWpx + totalGapPx;
+  const stepY  = photoHpx + totalGapPx;
+
+  const c = document.createElement('canvas');
+  c.width = pgWpx; c.height = pgHpx;
+  const cx = c.getContext('2d');
+  cx.fillStyle = '#ffffff';
+  cx.fillRect(0, 0, pgWpx, pgHpx);
+
+  // Preload
+  const cache = new Map();
+  for (const p of photoList) {
+    const src = getFinal(p);
+    if (!cache.has(src)) { try { cache.set(src, await loadImgP(src)); } catch(e) {} }
+  }
+
+  // Draw tiles
+  for (let i = 0; i < total; i++) {
+    const p = photoList[i % photoList.length];
+    const img = cache.get(getFinal(p));
+    if (!img) continue;
+    const col = i % cols, row = Math.floor(i / cols);
+    const x = offsetX + col * stepX, y = offsetY + row * stepY;
+    const imgAR = img.naturalWidth / img.naturalHeight;
+    const cellAR = photoWpx / photoHpx;
+
+    if (p.colFit) {
+      // ── Fit: ціле фото + розмитий фон ──────────────────────────
+      const blurPx = Math.max(4, Math.round(photoWpx * 0.04));
+      cx.save();
+      cx.beginPath(); cx.rect(x, y, photoWpx, photoHpx); cx.clip();
+      // Blurred cover background
+      cx.filter = `blur(${blurPx}px) brightness(0.45)`;
+      let bsx, bsy, bsw, bsh;
+      if (imgAR > cellAR) { bsh = img.naturalHeight; bsw = bsh * cellAR; bsx = (img.naturalWidth - bsw) / 2; bsy = 0; }
+      else                 { bsw = img.naturalWidth;  bsh = bsw / cellAR; bsx = 0; bsy = (img.naturalHeight - bsh) / 2; }
+      cx.drawImage(img, bsx, bsy, bsw, bsh, x - blurPx, y - blurPx, photoWpx + blurPx * 2, photoHpx + blurPx * 2);
+      cx.filter = 'none';
+      // Actual photo contained inside cell
+      let dw, dh, ddx, ddy;
+      if (imgAR > cellAR) { dw = photoWpx; dh = Math.round(photoWpx / imgAR); ddx = x; ddy = y + Math.round((photoHpx - dh) / 2); }
+      else                 { dh = photoHpx; dw = Math.round(photoHpx * imgAR); ddy = y; ddx = x + Math.round((photoWpx - dw) / 2); }
+      cx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, ddx, ddy, dw, dh);
+      cx.restore();
+    } else {
+      // ── Cover: кадрування з позицією ───────────────────────────
+      const posX = (p.colPosX ?? 50) / 100;
+      const posY = (p.colPosY ?? 50) / 100;
+      let sx, sy, sw, sh;
+      if (imgAR > cellAR) { sh = img.naturalHeight; sw = sh * cellAR; sx = (img.naturalWidth - sw) * posX; sy = 0; }
+      else                 { sw = img.naturalWidth;  sh = sw / cellAR; sx = 0; sy = (img.naturalHeight - sh) * posY; }
+      cx.drawImage(img, sx, sy, sw, sh, x, y, photoWpx, photoHpx);
+    }
+  }
+
+  // Cut lines (centered inside gaps; if gap=0 they fall on photo edges)
+  if (document.getElementById('chkCutLines').checked) {
+    cx.save();
+    cx.strokeStyle = 'rgba(0,0,0,0.35)';
+    cx.lineWidth = Math.max(1, Math.round(dpi / 150));
+    const dash = Math.round(dpi / 25);
+    cx.setLineDash([dash, dash]);
+    for (let ci = 1; ci < cols; ci++) {
+      const lx = offsetX + ci * stepX - gapPx; // gapPx from each photo edge
+      cx.beginPath(); cx.moveTo(lx, offsetY); cx.lineTo(lx, offsetY + gridH); cx.stroke();
+    }
+    for (let ri = 1; ri < rows; ri++) {
+      const ly = offsetY + ri * stepY - gapPx;
+      cx.beginPath(); cx.moveTo(offsetX, ly); cx.lineTo(offsetX + gridW, ly); cx.stroke();
+    }
+    cx.restore();
+  }
+  return c;
+}
+
+document.getElementById('btnCollagePreview').addEventListener('click', async () => {
+  const st = document.getElementById('collageStatus');
+  st.innerHTML = '<span class="spin"></span> Будую…'; st.className = 'status-msg processing';
+  const area = document.getElementById('collagePreviewArea');
+  const maxW = area.clientWidth  - 48;
+  const maxH = area.clientHeight - 48;
+  const [pgW_mm, pgH_mm] = colOrientation === 'portrait' ? [A4_W_MM, A4_H_MM] : [A4_H_MM, A4_W_MM];
+  const a4AR   = pgW_mm / pgH_mm;
+  const fitH   = Math.min(maxH, maxW / a4AR);
+  const fitW   = fitH * a4AR;
+  const prevDpi = Math.round(fitW / (pgW_mm / MM_PER_IN));
+  const c = await buildCollageCanvas(prevDpi);
+  if (!c) { st.innerHTML = ''; st.className = 'status-msg'; return; }
+  const cv = document.getElementById('collageCanvas');
+  cv.width = c.width; cv.height = c.height;
+  cv.getContext('2d').drawImage(c, 0, 0);
+  cv.style.display = 'block';
+  document.getElementById('collageEmptyHint').style.display = 'none';
+  st.innerHTML = '✓ Готово'; st.className = 'status-msg done';
+  setTimeout(() => { st.innerHTML = ''; st.className = 'status-msg'; }, 2000);
+});
+
+document.getElementById('btnCollageDownload').addEventListener('click', async () => {
+  const st = document.getElementById('collageStatus');
+  st.innerHTML = '<span class="spin"></span> Генерую 300 DPI…'; st.className = 'status-msg processing';
+  const c = await buildCollageCanvas(300);
+  if (!c) { st.innerHTML = ''; st.className = 'status-msg'; return; }
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/jpeg', 0.97);
+  a.download = 'collage_a4_300dpi.jpg';
+  a.click();
+  st.innerHTML = '✓ Завантажено'; st.className = 'status-msg done';
+  setTimeout(() => { st.innerHTML = ''; st.className = 'status-msg'; }, 2500);
+});
+
+document.getElementById('btnCollagePrint').addEventListener('click', async () => {
+  const st = document.getElementById('collageStatus');
+  st.innerHTML = '<span class="spin"></span> Підготовка…'; st.className = 'status-msg processing';
+  const c = await buildCollageCanvas(300);
+  if (!c) { st.innerHTML = ''; st.className = 'status-msg'; return; }
+  const dataUrl = c.toDataURL('image/jpeg', 0.97);
+  const [pgW_mm, pgH_mm] = colOrientation === 'portrait' ? [A4_W_MM, A4_H_MM] : [A4_H_MM, A4_W_MM];
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;}@page{size:${pgW_mm}mm ${pgH_mm}mm;margin:0;}img{width:100%;display:block;}</style></head><body><img src="${dataUrl}" onload="setTimeout(()=>{window.print();},200)"></body></html>`);
+  win.document.close();
+  st.innerHTML = ''; st.className = 'status-msg';
 });
 </script>
 </body>
