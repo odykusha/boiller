@@ -5,3 +5,4 @@ data_history.json
 .DS_Store
 models/
 gfpgan/
+config.json
