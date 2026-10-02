@@ -18,8 +18,8 @@ logger.addHandler(handler)
 logger.propagate = False
 
 SOC_LEVEL = 98
-HOME_LOAD = 3000
-MAX_HOME_LOAD = 4500
+HOME_LOAD = 5000
+MAX_HOME_LOAD = 6000
 
 with open('config.json', 'r') as f:
     config = json.load(f)
