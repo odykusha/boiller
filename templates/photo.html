@@ -1347,7 +1347,12 @@ document.getElementById('btnCollagePrint').addEventListener('click', async () =>
   const dataUrl = c.toDataURL('image/jpeg', 0.97);
   const [pgW_mm, pgH_mm] = colOrientation === 'portrait' ? [A4_W_MM, A4_H_MM] : [A4_H_MM, A4_W_MM];
   const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;}@page{size:${pgW_mm}mm ${pgH_mm}mm;margin:0;}img{width:100%;display:block;}</style></head><body><img src="${dataUrl}" onload="setTimeout(()=>{window.print();},200)"></body></html>`);
+  win.document.write(`<!DOCTYPE html><html><head><style>
+*{margin:0;padding:0;box-sizing:border-box;}
+@page{size:${pgW_mm}mm ${pgH_mm}mm;margin:0;}
+html,body{width:${pgW_mm}mm;height:${pgH_mm}mm;overflow:hidden;}
+img{display:block;width:${pgW_mm}mm;height:${pgH_mm}mm;}
+</style></head><body><img src="${dataUrl}" onload="setTimeout(()=>{window.print();},200)"></body></html>`);
   win.document.close();
   st.innerHTML = ''; st.className = 'status-msg';
 });
