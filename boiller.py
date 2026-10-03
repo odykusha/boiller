@@ -29,13 +29,17 @@ with open('config.json', 'r') as f:
 
 class Deye:
     def __init__(self):
-        self.inverter = PySolarmanV5(
-            address=c_deye['ip'],
-            serial=c_deye['serial'],
-            port=8899,
-            mb_slave_id=1,
-            verbose=False,
-        )
+        try:
+            self.inverter = PySolarmanV5(
+                address=c_deye['ip'],
+                serial=c_deye['serial'],
+                port=8899,
+                mb_slave_id=1,
+                verbose=False,
+            )
+        except Exception as e:
+            print(f'[❌Deye]: {e}')
+            return None
 
     def get_register(self, register_soc):
         result = self.inverter.read_holding_registers(
@@ -66,10 +70,14 @@ class Deye:
 
 class Mijia:
     def __init__(self):
-        self.plug = ChuangmiPlug(
-            ip=c_mijia['ip'],
-            token=c_mijia['token'],
-        )
+        try:
+            self.plug = ChuangmiPlug(
+                ip=c_mijia['ip'],
+                token=c_mijia['token'],
+            )
+        except Exception as e:
+            print(f'[❌Mijia]: {e}')
+            return None
     
     def on(self):
         self.plug.on()
@@ -83,6 +91,9 @@ class Mijia:
 
 
 def change_boiller(deye, mijia):
+    if not deye or not mijia:
+        logger.error(f'[Шось не робить] deye: {deye}, mijia: {mijia}. Нічого не міняю')
+        return
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
     # Зберігаємо дані для графіків
     storage.add_record(deye.battery_soc, deye.grid_load, deye.home_load)
@@ -102,7 +113,7 @@ def change_boiller(deye, mijia):
 
 if __name__ == "__main__":
     logger.info("🚀 Бойлер-контролер запущено. Перевірка кожні 60 секунд...")
-    
+
     deye = Deye()
     mijia = Mijia()
 
@@ -115,7 +126,7 @@ if __name__ == "__main__":
             logger.info("🔄 Спроба відновити з'єднання...")
             deye = Deye()
             mijia = Mijia()
-            logger.error("[[❌ Помилка відновлення з'єднання")
+            logger.error("❌ Помилка відновлення з'єднання")
         finally:
             # Зберігаємо історію на диск перед сном
             storage.save_history()
