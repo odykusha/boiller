@@ -89,7 +89,7 @@ class Mijia:
 
 
 def change_boiller(deye, mijia):
-    if not getattr(deye, 'inverter') or not getattr(mijia, 'plug'):
+    if not hasattr(deye, 'inverter') or not hasattr(mijia, 'plug'):
         logger.error(f'[Шось не робить] deye: {deye}, mijia: {mijia}. Нічого не міняю')
         return
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
