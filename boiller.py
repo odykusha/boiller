@@ -17,7 +17,7 @@ handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-
 logger.addHandler(handler)
 logger.propagate = False
 
-SOC_LEVEL = 98
+SOC_LEVEL = 80
 HOME_LOAD = 5000
 MAX_HOME_LOAD = 6000
 
@@ -90,7 +90,7 @@ class Mijia:
 
 def change_boiller(deye, mijia):
     if not hasattr(deye, 'inverter') or not hasattr(mijia, 'plug'):
-        logger.error(f'[Шось не робить] deye: {deye}, mijia: {mijia}. Нічого не міняю')
+        logger.error('[Шось не робить]. Нічого не міняю')
         return
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
     # Зберігаємо дані для графіків
