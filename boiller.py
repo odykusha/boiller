@@ -38,7 +38,7 @@ class Deye:
                 verbose=False,
             )
         except Exception as e:
-            print(f'[❌Deye]: {e}')
+            logger.error(f'[❌Deye]: {e}')
 
     def get_register(self, register_soc):
         result = self.inverter.read_holding_registers(
@@ -75,7 +75,7 @@ class Mijia:
                 token=c_mijia['token'],
             )
         except Exception as e:
-            print(f'[❌Mijia]: {e}')
+            logger.error(f'[❌Mijia]: {e}')
 
     def on(self):
         self.plug.on()
