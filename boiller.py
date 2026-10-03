@@ -39,7 +39,6 @@ class Deye:
             )
         except Exception as e:
             print(f'[❌Deye]: {e}')
-            return None
 
     def get_register(self, register_soc):
         result = self.inverter.read_holding_registers(
@@ -77,8 +76,7 @@ class Mijia:
             )
         except Exception as e:
             print(f'[❌Mijia]: {e}')
-            return None
-    
+
     def on(self):
         self.plug.on()
     
@@ -91,7 +89,7 @@ class Mijia:
 
 
 def change_boiller(deye, mijia):
-    if not deye or not mijia:
+    if not getattr(deye, 'inverter') or not getattr(mijia, 'plug'):
         logger.error(f'[Шось не робить] deye: {deye}, mijia: {mijia}. Нічого не міняю')
         return
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
