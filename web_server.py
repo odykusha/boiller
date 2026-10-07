@@ -17,6 +17,10 @@ APK_FOLDER = os.path.join(os.path.dirname(__file__), 'app')
 def index():
     return render_template('index.html')
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.ico')
+
 @app.route('/<path:page>')
 def serve_page(page):
     if not page.endswith('.html'):
