@@ -1,12 +1,11 @@
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-import traceback
 import json
 import logging
 import time
 from pysolarmanv5 import PySolarmanV5
-from miio import ChuangmiPlug
+from miio import ChuangmiPlug, DeviceException
 from data_storage import storage
 
 
@@ -41,10 +40,14 @@ class Deye:
             logger.error(f'[❌Deye]: {e}')
 
     def get_register(self, register_soc):
-        result = self.inverter.read_holding_registers(
-            register_addr=register_soc,
-            quantity=1,
-        )
+        try:
+            result = self.inverter.read_holding_registers(
+                register_addr=register_soc,
+                quantity=1,
+            )
+        except Exception as e:
+            logger.error(f'[❌Deye] не вдалось прочитати регістр {register_soc}: {e}')
+            return None
         return result[0]
     
     @property
@@ -59,29 +62,28 @@ class Deye:
     def home_load(self):
         return self.get_register(176)
     
-    def is_grid_on(self):
-        light = self.grid_load > 0
-        return light
-    
-    def is_grid_off(self):
-        return not self.is_grid_on()
 
 
 class Mijia:
     def __init__(self):
-        try:
-            self.plug = ChuangmiPlug(
-                ip=c_mijia['ip'],
-                token=c_mijia['token'],
-            )
-        except Exception as e:
-            logger.error(f'[❌Mijia]: {e}')
+        # Конструктор ні до чого не підключається, handshake з розеткою
+        # відбувається при першій команді on()/off()
+        self.plug = ChuangmiPlug(
+            ip=c_mijia['ip'],
+            token=c_mijia['token'],
+        )
 
     def on(self):
-        self.plug.on()
-    
+        try:
+            self.plug.on()
+        except DeviceException as e:
+            logger.error(f'[❌Mijia] не вдалось увімкнути: {e}')
+
     def off(self):
-        self.plug.off()
+        try:
+            self.plug.off()
+        except DeviceException as e:
+            logger.error(f'[❌Mijia] не вдалось вимкнути: {e}')
 
     # def is_on(self):
     #     status = self.plug.status().is_on
@@ -92,23 +94,28 @@ def change_boiller(deye, mijia):
     if not hasattr(deye, 'inverter'):
         logger.error('[Deye не робить]. Нічого не міняю')
         return
-    else:
-        # Зберігаємо дані для графіків
-        storage.add_record(deye.battery_soc, deye.grid_load, deye.home_load)
 
-    if not hasattr(mijia, 'plug'):
-        logger.error('[Mijia не робить]. Нічого не міняю')
+    # Читаємо кожен регістр один раз, щоб не ходити до інвертора повторно
+    battery_soc = deye.battery_soc
+    grid_load = deye.grid_load
+    home_load = deye.home_load
+    if None in (battery_soc, grid_load, home_load):
+        logger.error('[Deye не відповідає]. Нічого не міняю')
         return
-    info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
 
-    if deye.is_grid_off():
+    # Зберігаємо дані для графіків
+    storage.add_record(battery_soc, grid_load, home_load)
+    info = f"батарея: {battery_soc}%, мережа: {grid_load} Вт, дім: {home_load} Вт"
+    grid_on = grid_load > 0
+
+    if not grid_on:
         logger.info(f"🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
-    elif deye.is_grid_on() and deye.battery_soc >= SOC_LEVEL and deye.home_load <= HOME_LOAD:
+    elif battery_soc >= SOC_LEVEL and home_load <= HOME_LOAD:
         logger.info(f"💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. {info}")
         mijia.on()
-    elif deye.is_grid_on() and deye.home_load >= MAX_HOME_LOAD:
-        logger.info(f"💡 Мережа є, Дім занадто великий - {deye.home_load} Вт, Бойлер ВИМКНЕНО 🪫. {info}")
+    elif home_load >= MAX_HOME_LOAD:
+        logger.info(f"💡 Мережа є, Дім занадто великий - {home_load} Вт, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
     else:
         logger.info(f"⏳ Мережа є, Чекаємо зарядження батареї. {info}")
@@ -123,13 +130,9 @@ if __name__ == "__main__":
     while True:
         try:
             change_boiller(deye, mijia)
-        except Exception as e:
-            logger.error(f"❌ Помилка: {e}")
-            traceback.print_exc()
-            logger.info("🔄 Спроба відновити з'єднання...")
-            deye = Deye()
-            mijia = Mijia()
-            logger.error("❌ Помилка відновлення з'єднання")
+        except Exception:
+            # Несподівана помилка: стек у той самий формат логів
+            logger.exception("❌ Помилка")
         finally:
             # Зберігаємо історію на диск перед сном
             storage.save_history()
