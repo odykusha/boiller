@@ -26,10 +26,9 @@ services:
       - .:/workspace
     working_dir: /workspace
     logging:
-      driver: "json-file"
-      options:
-        max-size: "3m"  # Максимальний розмір одного файлу
-        max-file: "5"   # Зберігати максимум 5 файлів
+      # journald стійкий до відключення живлення (json-file після
+      # обриву лишає нулі у файлі, і `docker compose logs` зупиняється)
+      driver: "journald"
     command: python3.12 boiller.py
 
   web:
