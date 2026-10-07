@@ -1,8 +1,9 @@
 """
 Веб-сервер для відображення графіків даних інвертера
 """
-from flask import Flask, render_template, jsonify, send_from_directory, request
+from flask import Flask, render_template, jsonify, send_from_directory, request, abort
 from flask_cors import CORS
+from jinja2 import TemplateNotFound
 from data_storage import storage
 import os
 from photo_enhancer import enhance, ai_enhance, gfpgan_restore, remove_bg
@@ -20,7 +21,11 @@ def index():
 def serve_page(page):
     if not page.endswith('.html'):
         page = page + '.html'
-    return render_template(page)
+    try:
+        return render_template(page)
+    except TemplateNotFound:
+        # Браузер сам запитує /favicon.ico тощо: віддаємо 404 без traceback
+        abort(404)
 
 @app.route('/api/data')
 def get_data():
