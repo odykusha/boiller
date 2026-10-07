@@ -89,13 +89,18 @@ class Mijia:
 
 
 def change_boiller(deye, mijia):
-    if not hasattr(deye, 'inverter') or not hasattr(mijia, 'plug'):
-        logger.error('[Шось не робить]. Нічого не міняю')
+    if not hasattr(deye, 'inverter'):
+        logger.error('[Deye не робить]. Нічого не міняю')
+        return
+    else:
+        # Зберігаємо дані для графіків
+        storage.add_record(deye.battery_soc, deye.grid_load, deye.home_load)
+
+    if not hasattr(mijia, 'plug'):
+        logger.error('[Mijia не робить]. Нічого не міняю')
         return
     info = f"батарея: {deye.battery_soc}%, мережа: {deye.grid_load} Вт, дім: {deye.home_load} Вт"
-    # Зберігаємо дані для графіків
-    storage.add_record(deye.battery_soc, deye.grid_load, deye.home_load)
-    
+
     if deye.is_grid_off():
         logger.info(f"🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
