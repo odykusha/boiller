@@ -95,6 +95,10 @@ def change_boiller(deye, mijia):
         logger.error('[Deye не робить]. Нічого не міняю')
         return
 
+    # Зберігаємо дані для графіків
+    storage.add_record(battery_soc, grid_load, home_load)
+    info = f"батарея: {battery_soc}%, мережа: {grid_load} Вт, дім: {home_load} Вт"
+
     # Читаємо кожен регістр один раз, щоб не ходити до інвертора повторно
     battery_soc = deye.battery_soc
     grid_load = deye.grid_load
@@ -103,9 +107,6 @@ def change_boiller(deye, mijia):
         logger.error('[Deye не відповідає]. Нічого не міняю')
         return
 
-    # Зберігаємо дані для графіків
-    storage.add_record(battery_soc, grid_load, home_load)
-    info = f"батарея: {battery_soc}%, мережа: {grid_load} Вт, дім: {home_load} Вт"
     grid_on = grid_load > 0
 
     if not grid_on:
