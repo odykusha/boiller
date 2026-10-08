@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from pysolarmanv5 import PySolarmanV5
-from miio import ChuangmiPlug, DeviceException
+from miio import ChuangmiPlug, DeviceException, Gateway
 from data_storage import storage
 
 
@@ -40,6 +40,8 @@ class Deye:
             logger.error(f'[❌Deye]: {e}')
 
     def get_register(self, register_soc):
+        if not hasattr(self, 'inverter'):
+            return None
         try:
             result = self.inverter.read_holding_registers(
                 register_addr=register_soc,
@@ -47,6 +49,13 @@ class Deye:
             )
         except Exception as e:
             logger.error(f'[❌Deye] не вдалось прочитати регістр {register_soc}: {e}')
+            # Скидаємо зʼєднання: без атрибута inverter головний цикл
+            # перестворить Deye() на наступній ітерації
+            try:
+                self.inverter.disconnect()
+            except Exception:
+                pass
+            del self.inverter
             return None
         return result[0]
     
@@ -68,10 +77,18 @@ class Mijia:
     def __init__(self):
         # Конструктор ні до чого не підключається, handshake з розеткою
         # відбувається при першій команді on()/off()
-        self.plug = ChuangmiPlug(
+        # self.plug = ChuangmiPlug(
+        #    ip=c_mijia['ip'],
+        #    token=c_mijia['token'],
+        # )
+
+        # without wifi
+        gw = Gateway(
             ip=c_mijia['ip'],
             token=c_mijia['token'],
         )
+        gw.discover_devices()
+        self.plug = gw.devices['lumi.158d0003a8399a']
 
     def on(self):
         try:
