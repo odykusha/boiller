@@ -3,12 +3,12 @@
 """
 import json
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import deque
 from pathlib import Path
 
-# Максимальна кількість записів для зберігання (останні 24 години при перевірці кожні 60 сек = 1440 записів)
-MAX_RECORDS = 1440
+# Максимальна кількість записів для зберігання (останні 7 днів при перевірці кожні 60 сек = 10080 записів)
+MAX_RECORDS = 7 * 24 * 60
 
 class DataStorage:
     def __init__(self, data_file='data_history.json'):
@@ -43,6 +43,18 @@ class DataStorage:
                 return history_list[-limit:]
             return history_list
     
+    def get_history_for_hours(self, hours):
+        """Отримує записи за N годин до останнього запису.
+        Рахуємо від останнього запису, а не від «зараз»: якщо контролер
+        давно не пише дані, на графіку все одно буде останнє, що є.
+        """
+        history_list = self.get_history()
+        if not history_list:
+            return []
+        last = datetime.fromisoformat(history_list[-1]['timestamp'])
+        since = (last - timedelta(hours=hours)).isoformat()
+        return [r for r in history_list if r['timestamp'] >= since]
+
     def get_latest(self):
         """Перезавантажує історію з диску (корисно коли файл оновлюється іншим процесом)"""
         self.load_history()

@@ -268,6 +268,36 @@
             display: block;
         }
         
+        .period-switch {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .period-btn {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #8892b0;
+            padding: 8px 18px;
+            margin: 0 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            transition: all 0.2s ease;
+        }
+
+        .period-btn:hover {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+
+        .period-btn.active {
+            background: rgba(0, 212, 255, 0.3);
+            border-color: rgba(0, 212, 255, 0.6);
+            color: #00d4ff;
+        }
+
         .status {
             text-align: center;
             color: #8892b0;
@@ -283,6 +313,10 @@
         .status span {
             color: #00ff96;
             font-weight: 600;
+        }
+
+        .status .stale {
+            color: #ff6b6b;
         }
         
         .apk-link {
@@ -344,6 +378,13 @@
 <body>
     <div class="container">
         <h1>Інвертор - Моніторинг <span id="header-light-indicator">💡</span></h1>
+
+        <div class="period-switch">
+            <button class="period-btn" data-hours="2" onclick="setPeriod(2)">2h</button>
+            <button class="period-btn" data-hours="12" onclick="setPeriod(12)">12h</button>
+            <button class="period-btn active" data-hours="24" onclick="setPeriod(24)">24h</button>
+            <button class="period-btn" data-hours="168" onclick="setPeriod(168)">7d</button>
+        </div>
         
         <div class="charts">
             <div class="chart-container" id="battery-chart-container">
@@ -387,6 +428,7 @@
         
         <div class="status">
             Останнє оновлення: <span id="last-update">-</span>
+            <span id="stale-warning" class="stale"></span>
             <span style="margin-left: 20px;">|</span>
             <a href="/download/boiller-monitor.apk" title="Завантажити Android додаток" class="apk-link">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#3DDC84">
@@ -552,6 +594,17 @@
             }
         );
 
+        // Поточний період графіків у годинах (2h / 12h / 24h / 7d)
+        let currentHours = 24;
+
+        function setPeriod(hours) {
+            currentHours = hours;
+            document.querySelectorAll('.period-btn').forEach(btn => {
+                btn.classList.toggle('active', Number(btn.dataset.hours) === hours);
+            });
+            loadData();
+        }
+
         // Функція для форматування часу
         function formatTime(timestamp) {
             const date = new Date(timestamp);
@@ -562,13 +615,47 @@
             });
         }
 
+        // Підпис осі: для періодів довше доби додаємо дату
+        function formatLabel(timestamp) {
+            const date = new Date(timestamp);
+            if (currentHours > 24) {
+                return date.toLocaleString('uk-UA', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+            return formatTime(timestamp);
+        }
+
+        // Попередження, якщо останній запис старший за 5 хвилин
+        function updateStaleWarning(timestamp) {
+            const ageMinutes = Math.floor((Date.now() - new Date(timestamp)) / 60000);
+            const warning = document.getElementById('stale-warning');
+            if (ageMinutes < 5) {
+                warning.textContent = '';
+                return;
+            }
+            let age;
+            if (ageMinutes < 60) {
+                age = `${ageMinutes} хв`;
+            } else if (ageMinutes < 24 * 60) {
+                age = `${Math.floor(ageMinutes / 60)} год`;
+            } else {
+                age = `${Math.floor(ageMinutes / 60 / 24)} дн`;
+            }
+            const date = new Date(timestamp).toLocaleString('uk-UA');
+            warning.textContent = `⚠ дані не оновлювались ${age} (з ${date})`;
+        }
+
         // Функція для оновлення графіків
         function updateCharts(data) {
             if (!data || data.length === 0) {
                 return;
             }
 
-            const labels = data.map(item => formatTime(item.timestamp));
+            const labels = data.map(item => formatLabel(item.timestamp));
             const batteryData = data.map(item => item.battery_soc);
             const gridData = data.map(item => item.grid_load);
             const homeData = data.map(item => item.home_load);
@@ -592,6 +679,7 @@
             document.getElementById('grid-value').textContent = latest.grid_load;
             document.getElementById('home-value').textContent = latest.home_load;
             document.getElementById('last-update').textContent = formatTime(latest.timestamp);
+            updateStaleWarning(latest.timestamp);
             
             // Оновлюємо індикатор світла в заголовку
             const headerLightIndicator = document.getElementById('header-light-indicator');
@@ -614,7 +702,7 @@
         // Функція для завантаження даних
         async function loadData() {
             try {
-                const response = await fetch('/api/data');
+                const response = await fetch(`/api/data?hours=${currentHours}`);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }

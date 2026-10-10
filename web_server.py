@@ -31,10 +31,19 @@ def serve_page(page):
         # Браузер сам запитує /favicon.ico тощо: віддаємо 404 без traceback
         abort(404)
 
+# Максимум точок на графіку: довші періоди проріджуємо, щоб не вантажити браузер
+MAX_CHART_POINTS = 2000
+
 @app.route('/api/data')
 def get_data():
-    history = storage.get_history(limit=1440)
-    print(f"API /api/data: повертаємо {len(history)} записів")
+    hours = request.args.get('hours', 24, type=int)
+    hours = max(1, min(hours, 7 * 24))
+    history = storage.get_history_for_hours(hours)
+    step = max(1, len(history) // MAX_CHART_POINTS)
+    if step > 1:
+        # Останній запис лишаємо завжди, щоб «останнє оновлення» було актуальним
+        history = history[:-1:step] + history[-1:]
+    print(f"API /api/data: hours={hours}, повертаємо {len(history)} записів")
     return jsonify({'data': history, 'count': len(history)})
 
 @app.route('/api/latest')
