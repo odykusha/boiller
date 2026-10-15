@@ -16,9 +16,10 @@ handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-
 logger.addHandler(handler)
 logger.propagate = False
 
-SOC_LEVEL = 80
-HOME_LOAD = 5000
-MAX_HOME_LOAD = 6000
+# Пороги споживання дому (Вт). Два різні значення, щоб бойлер не клацав
+# щохвилини: сам бойлер додає ~2 кВт до споживання.
+MIN_HOME_LOAD = 4000  # споживання не більше цього — можна вмикати бойлер
+MAX_HOME_LOAD = 7000  # споживання більше цього — бойлер треба вимкнути
 
 with open('config.json', 'r') as f:
     config = json.load(f)
@@ -89,16 +90,20 @@ class Mijia:
         )
         gw.discover_devices()
         self.plug = gw.devices['lumi.158d0003a8399a']
+        # Остання команда, яку ми надіслали розетці (для графіка)
+        self.is_on = False
 
     def on(self):
         try:
             self.plug.on()
+            self.is_on = True
         except (DeviceException, OSError) as e:
             logger.error(f'[❌Mijia] не вдалось увімкнути: {e}')
 
     def off(self):
         try:
             self.plug.off()
+            self.is_on = False
         except (DeviceException, OSError) as e:
             logger.error(f'[❌Mijia] не вдалось вимкнути: {e}')
 
@@ -120,22 +125,24 @@ def change_boiller(deye, mijia):
         logger.error('[Deye не відповідає]. Нічого не міняю')
         return
 
-    # Зберігаємо дані для графіків
-    storage.add_record(battery_soc, grid_load, home_load)
     info = f"батарея: {battery_soc}%, мережа: {grid_load} Вт, дім: {home_load} Вт"
     grid_on = grid_load > 0
 
     if not grid_on:
         logger.info(f"🕯️ Мережі немає, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
-    elif battery_soc >= SOC_LEVEL and home_load <= HOME_LOAD:
-        logger.info(f"💡 Мережа є, Батареї {SOC_LEVEL}%, Бойлер УВІМКНЕНО 🔋. {info}")
+    elif home_load <= MIN_HOME_LOAD:
+        logger.info(f"💡 Мережа є, дім {home_load} Вт ≤ {MIN_HOME_LOAD}, Бойлер УВІМКНЕНО 🔋. {info}")
         mijia.on()
-    elif home_load >= MAX_HOME_LOAD:
-        logger.info(f"💡 Мережа є, Дім занадто великий - {home_load} Вт, Бойлер ВИМКНЕНО 🪫. {info}")
+    elif home_load > MAX_HOME_LOAD:
+        logger.info(f"💡 Мережа є, дім {home_load} Вт > {MAX_HOME_LOAD}, Бойлер ВИМКНЕНО 🪫. {info}")
         mijia.off()
     else:
-        logger.info(f"⏳ Мережа є, Чекаємо зарядження батареї. {info}")
+        # Між порогами нічого не міняємо (гістерезис)
+        logger.info(f"⏳ Мережа є, дім {home_load} Вт між порогами, стан не міняю. {info}")
+
+    # Зберігаємо дані для графіків (після рішення, щоб знати стан бойлера)
+    storage.add_record(battery_soc, grid_load, home_load, boiler_on=mijia.is_on)
 
 
 if __name__ == "__main__":

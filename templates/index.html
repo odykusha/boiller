@@ -65,6 +65,20 @@
             opacity: 0.5;
             filter: drop-shadow(0 0 5px rgba(150, 150, 150, 0.3));
         }
+
+        /* Статус бойлера: 🔥 увімкнений, 🚿 вимкнений (тьмяний) */
+        #header-boiler-indicator {
+            font-size: 1em;
+            margin-left: 15px;
+            display: inline-block;
+            transition: all 0.3s ease;
+            filter: drop-shadow(0 0 15px rgba(255, 120, 0, 0.8));
+        }
+
+        #header-boiler-indicator.off {
+            opacity: 0.4;
+            filter: none;
+        }
         
         @keyframes pulse-glow-header {
             0%, 100% {
@@ -377,7 +391,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Інвертор - Моніторинг <span id="header-light-indicator">💡</span></h1>
+        <h1>Інвертор - Моніторинг <span id="header-light-indicator">💡</span><span id="header-boiler-indicator" class="off" title="Бойлер">🚿</span></h1>
 
         <div class="period-switch">
             <button class="period-btn" data-hours="2" onclick="setPeriod(2)">2h</button>
@@ -696,6 +710,18 @@
                 // Свічка коли немає світла
                 headerLightIndicator.textContent = '🕯️';
                 headerLightIndicator.className = 'off';
+            }
+
+            // Індикатор бойлера (поле boiler_on є лише в нових записах)
+            const boilerIndicator = document.getElementById('header-boiler-indicator');
+            if (latest.boiler_on) {
+                boilerIndicator.textContent = '🔥';
+                boilerIndicator.className = 'on';
+                boilerIndicator.title = 'Бойлер увімкнений';
+            } else {
+                boilerIndicator.textContent = '🚿';
+                boilerIndicator.className = 'off';
+                boilerIndicator.title = 'Бойлер вимкнений';
             }
         }
 

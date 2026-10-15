@@ -18,7 +18,7 @@ class DataStorage:
         self.history = deque(maxlen=MAX_RECORDS)
         self.load_history()
     
-    def add_record(self, battery_soc, grid_load, home_load):
+    def add_record(self, battery_soc, grid_load, home_load, boiler_on=None):
         """Додає новий запис до історії"""
         record = {
             'timestamp': datetime.now().isoformat(),
@@ -26,6 +26,7 @@ class DataStorage:
             'grid_load': grid_load,
             'home_load': home_load,
             'grid_status': grid_load > 0,  # True якщо є світло, False якщо немає
+            'boiler_on': boiler_on,        # True/False — чи увімкнений бойлер
         }
         
         with self.lock:
